@@ -247,7 +247,7 @@ def setup(ctx):
     ax.set_ylim(Y0, Y1)
     ax.tick_params(colors=MUTED, length=0, labelsize=18)
     ax.set_yticks(yticks)
-    ax.set_yticklabels([money_axis(v) for v in yticks], fontproperties=BAR, fontsize=20)
+    ax.set_yticklabels([money_axis(v) for v in yticks], parse_math=False, fontproperties=BAR, fontsize=20)
     # zaman etiketleri: gerçek piksel genişlikleri ölçülür, komşusuna 24 px'ten yakın yıl etiketi atlanır
     xt = x_ticks(listed, today)
     tick_prop = BAR.copy()
@@ -257,7 +257,7 @@ def setup(ctx):
     widths = [renderer.get_text_width_height_descent(s, tick_prop, ismath=False)[0] for _, s in xt]
     xt = thin_ticks(xt, centers, widths, TICK_GAP_PX * fig.dpi / 100)
     ax.set_xticks([d for d, _ in xt])
-    ax.set_xticklabels([s for _, s in xt], fontproperties=BAR, fontsize=20)
+    ax.set_xticklabels([s for _, s in xt], parse_math=False, fontproperties=BAR, fontsize=20)
     grid = [ax.axhline(v, color=LINE, lw=1, zorder=0) for v in yticks]
 
     glow_specs = [(14, 0.06), (8, 0.14), (4.5, 0.3), (2.4, 1.0)]
@@ -283,37 +283,41 @@ def setup(ctx):
             xv, yv, ha = (X[first] + X[last]) / 2, P[first - 1] + SPAN * 14000 / REF_SPAN, "center"
         else:
             xv, yv, ha = X[first] - END * 6 / REF_DAYS, P[first] - SPAN * 24000 / REF_SPAN, "right"
-        label = ax.text(xv, yv, group_label(P, idx), fontproperties=BARB, fontsize=20, color=color,
-                        ha=ha, va="center", alpha=0, zorder=9)
+        label = ax.text(xv, yv, group_label(P, idx), parse_math=False, fontproperties=BARB, fontsize=20,
+                        color=color, ha=ha, va="center", alpha=0, zorder=9)
         cut_labels.append((label, last))
 
     if paid is not None:
         paid_line = ax.plot([], [], color=AMBER, lw=2.4, ls=(0, (6, 5)), zorder=4)[0]
         paid_txt = ax.text(END * 10 / REF_DAYS, paid + SPAN * 9000 / REF_SPAN,
-                           p["paid_text"] or auto_paid_text(paid, paid_year), fontproperties=BARB, fontsize=22,
-                           color=AMBER, ha="left", va="bottom", alpha=0, zorder=9)
+                           p["paid_text"] or auto_paid_text(paid, paid_year), parse_math=False,
+                           fontproperties=BARB, fontsize=22, color=AMBER, ha="left", va="bottom", alpha=0, zorder=9)
         bx = END + END * 8 / REF_DAYS
         diff_color = AMBER if P[-1] >= paid else RED  # alış fiyatının altındaysa zarar rengi
         brk = ax.annotate("", xy=(bx, paid), xytext=(bx, P[-1]),
-                          arrowprops=dict(arrowstyle="<->", color=diff_color, lw=2.2), alpha=0, zorder=9)
+                          arrowprops=dict(arrowstyle="<->", color=diff_color, lw=2.2), alpha=0, zorder=9,
+                          parse_math=False)
         brk_txt = ax.text(END - END * 12 / REF_DAYS, (paid + P[-1]) / 2,
-                          p["diff_text"] or auto_diff_text(int(P[-1]), paid), fontproperties=BARB, fontsize=22,
-                          color=diff_color, ha="right", va="center", alpha=0, zorder=9, linespacing=1.1)
+                          p["diff_text"] or auto_diff_text(int(P[-1]), paid), parse_math=False,
+                          fontproperties=BARB, fontsize=22, color=diff_color, ha="right", va="center", alpha=0,
+                          zorder=9, linespacing=1.1)
         place_diff_text(fig, ax, brk_txt, paid_txt, X, P, paid, SPAN, [lb for lb, _ in cut_labels])
 
     # başlık
-    K = fig.text(0.07, 0.905, p["kicker"], fontproperties=BAR, fontsize=26, color=NEON, alpha=0)
-    T = fig.text(0.068, 0.885, p["title"] or auto_title(n_cuts(list(P))), fontproperties=NUM, fontsize=92 * NK,
-                 color=TEXT, alpha=0, va="top")
+    K = fig.text(0.07, 0.905, p["kicker"], parse_math=False, fontproperties=BAR, fontsize=26, color=NEON, alpha=0)
+    T = fig.text(0.068, 0.885, p["title"] or auto_title(n_cuts(list(P))), parse_math=False, fontproperties=NUM,
+                 fontsize=92 * NK, color=TEXT, alpha=0, va="top")
     fit_text(fig, T, 0.88)
-    S = fig.text(0.07, 0.745, p["subtitle"], fontproperties=BAR, fontsize=24, color=MUTED, alpha=0, va="top")
+    S = fig.text(0.07, 0.745, p["subtitle"], parse_math=False, fontproperties=BAR, fontsize=24, color=MUTED,
+                 alpha=0, va="top")
 
     # sağ panel
     PX = 0.73
 
     def block(y, label, big):
-        lab = fig.text(PX, y, label, fontproperties=BAR, fontsize=24, color=MUTED, alpha=0)
-        val = fig.text(PX - 0.003, y - 0.012, "", fontproperties=NUM, fontsize=big * NK, color=TEXT, alpha=0, va="top")
+        lab = fig.text(PX, y, label, parse_math=False, fontproperties=BAR, fontsize=24, color=MUTED, alpha=0)
+        val = fig.text(PX - 0.003, y - 0.012, "", parse_math=False, fontproperties=NUM, fontsize=big * NK,
+                       color=TEXT, alpha=0, va="top")
         return lab, val
 
     def fit_value(val, widest):

@@ -2,7 +2,7 @@
 
 Bu belge, Harita Stüdyosu'nu bir iş akışına ya da başka bir yapay zeka ajanına bağlayacak kişiler için yazıldı. Aracın ne ürettiğini, nasıl sürüleceğini, girdilerin biçimini, çıktıları ve sınırları anlatır. Son kullanıcı kılavuzu [README.md](../README.md) dosyasındadır.
 
-- **Sürüm:** v1.1 (2026-09-24): marka dosyası (§3.1), `county_focus` sahnesi (§5.3), dosyadan proje yükleme (§4, §7). Proje dosyası şema sürümü: `1`.
+- **Sürüm:** v1.2 (2026-09-24): metinlerde `$` işareti düz yazılır (§5), vurgusuz `state_map`'te yavaş yakınlaşma (§5.1), ortalı `county_focus` açılışı ve yeni etiket yerleşimi (§5.3). v1.1: marka dosyası (§3.1), `county_focus` sahnesi (§5.3), dosyadan proje yükleme (§4, §7). Proje dosyası şema sürümü: `1`.
 - **Depo:** https://github.com/bemonths/harita-studyosu
 
 ## 1. Ne üretir?
@@ -109,6 +109,8 @@ Doğrulama render'dan önce otomatik yapılır. Hatalı bir alan varsa render ba
 | `scenes[].enabled` | `false` olan sahne render edilmez. En az bir sahne açık olmalı. |
 | `scenes[].params` | Sahne ayarları. Eksik alanlar varsayılanla doldurulur. |
 
+**Metinler:** Bütün metin ayarları düz yazı olarak çizilir. `$` işareti matematik yazısı olarak yorumlanmaz, olduğu gibi görünür (ör. `BUYERS PAY $94 FOR EVERY $100 ASKED`).
+
 Güncel ayar listesi, varsayılanlar ve sınırlar makine tarafından okunabilir biçimde `GET /api/scenes` ucundan alınabilir. Python'da aynı bilgi `scenes.REGISTRY["state_map"].schema()` ile alınır.
 
 ### 5.1 `state_map` ayarları
@@ -121,7 +123,7 @@ Güncel ayar listesi, varsayılanlar ve sınırlar makine tarafından okunabilir
 | `accent` | `#rrggbb` | `brand.json` → `colors.accent` | Neon sınır ve vurgu parlaması rengi |
 | `categories` | 2–7 öğe: `{key, label, color}`. `key` `^[a-z0-9_]{1,20}$` ve benzersiz, `label` 1–40 karakter, `color` `#rrggbb`. **Son öğenin anahtarı `none` olmalı.** | `brand.json` kategorileri (aşağıda) | Açıklama kutusu ve boyama renkleri. `none`, atanmamış county'lerin rengi ve etiketidir. Açıklama kutusunda yalnızca `assign` içinde kullanılan kategoriler (liste sırasıyla) ve en sonda `none` gösterilir. |
 | `assign` | `{ "<5 haneli FIPS>": "<kategori key>" }` | `{}` | County boyaması. FIPS seçili eyalete ait olmalı. Listede olmayan county'ler `none` sayılır. |
-| `focus` | 5 haneli FIPS ya da `null` | `null` | Sahnenin sonunda yakınlaşılacak county. `null` ise kamera eyalette kalır. |
+| `focus` | 5 haneli FIPS ya da `null` | `null` | Sahnenin sonunda yakınlaşılacak county. `null` ise kamera eyalette kalır ve 8,5 sn'den sahne sonuna kadar eyalete çok yavaş (toplam %3) yaklaşır. |
 | `focus_name` | metin | `""` | Vurgu etiketi. Boşsa `<AD> <LSAD>` büyük harfle yazılır (ör. `CHARLOTTE COUNTY`). |
 | `focus_sub` | metin | `""` | Etiketin altındaki küçük satır |
 | `focus_stat` | metin | `""` | İstatistik satırı. Vurgulanan county'nin kategori renginde yazılır; county `none` ise `accent` renginde. |
@@ -153,6 +155,7 @@ Zaman çizelgesi (13 sn temel süre):
 | 4,6–5,8 | Başlık ve alt başlık belirir |
 | 5,0–8,2 | County'ler kuzeyden güneye sırayla boyanır |
 | 7,4–8,5 | Açıklama kutusu belirir |
+| 8,5–13,0 | Vurgu yoksa eyalete çok yavaş yakınlaşma (toplam %3); eyaletin ekrandaki merkezi yerinde kalır |
 | 9,0–11,2 | Vurgu county'sine yakınlaşma (vurgu varsa) |
 | 9,6–12,0 | Vurgu nabzı, bağlantı çizgisi, etiket, alt yazı ve istatistik sırayla belirir |
 
@@ -184,6 +187,8 @@ Eksen aralığı, tik aralığı ve yıl etiketleri veriden kendiliğinden hesap
 
 Videonun county bölümlerini açar. `state_map` gibi ABD'den inmez: eyalet kadrajında, county'ler boyalı ve neon sınır çizili olarak başlar, anlatılan county'ye yakınlaşır. Başlık ve renk açıklaması kutusu yoktur.
 
+**Açılış kadrajı:** Eyalet ekranın ortasındadır; üstte ve altta en az %8, yanlarda en az %6 boşluk kalır (`engine/framing.py` → `CENTER_REGION`). Yakınlaşma bu kadrajdan başlar. `state_map`'teki sağa yaslı kadraj (sol blok için) burada kullanılmaz.
+
 Ayarlar `state_map` ile aynı ad ve kurallara sahiptir (bkz. §5.1). Farklar şunlar:
 
 | Ayar | Kural | Varsayılan |
@@ -191,20 +196,25 @@ Ayarlar `state_map` ile aynı ad ve kurallara sahiptir (bkz. §5.1). Farklar şu
 | `state`, `accent`, `categories`, `assign` | §5.1 ile aynı | §5.1 ile aynı |
 | `focus` | **Zorunlu.** Seçili eyalete ait 5 haneli FIPS; `null` ya da boş olamaz. | `null` (doldurulmalı) |
 | `focus_name`, `focus_sub`, `focus_stat`, `focus_zoom` | §5.1 ile aynı. Ad `place` yazı tipiyle, istatistik county'nin kategori renginde yazılır. | §5.1 ile aynı |
-| `zoom`, `shift_x`, `shift_y` | §5.1 ile aynı; başlangıçtaki eyalet kadrajını ayarlar | 1 / 0 / 0 |
+| `zoom`, `shift_x`, `shift_y` | §5.1 ile aynı; ortalı açılış kadrajını ayarlar. Varsayılan değerler kuralı sağlar, değiştirilirse boşluklar değişir. | 1 / 0 / 0 |
 | `duration` | 2,5–10 sn | 5 |
 | `title`, `subtitle` | Bu sahnede yok | |
 
-**Etiket yerleşimi:** Etiket ve bağlantı çizgisi, county'nin hangi tarafında daha çok boş alan (su ya da eyalet dışı) varsa o tarafa konur. Bunun için etiket bölgesinin eyaletle örtüşmesi iki taraf için hesaplanır ve az olan seçilir; eşitlikte sol seçilir. Örneğin Florida'da St. Lucie ve Miami-Dade'de etiket sağa (Atlantik), Lee ve Charlotte'ta sola (Meksika Körfezi) düşer. Seçim `engine/framing.py` içindeki `label_side` fonksiyonundadır.
+**Etiket yerleşimi** (`county_focus` ve `state_map`): Etiket bloğu (ad, alt yazı, istatistik) şu koşulları her zaman sağlar:
 
-**Etiketin kadraja sığması** (`county_focus` ve `state_map`): Etiket bloğu (ad, alt yazı, istatistik) her zaman ekranın içinde, kenarlardan en az %3 boşlukla kalır ve vurgulanan county'nin üstüne binmez. Metin varsayılan yere sığmazsa sırayla şunlar denenir:
+- Ekranın içinde, kenarlardan en az %3 boşlukla kalır.
+- Vurgulanan county'nin sınır kutusuna 24 px'ten (1080p) fazla yaklaşmaz.
+- County merkezinin dış tarafında durur, böylece bağlantı çizgisi yazıların üstünden geçmez.
+- `state_map`'te vurgu sırasında ekranda kalan renk açıklaması kutusuna da 24 px'ten fazla yaklaşmaz.
 
-1. Etiket county'ye doğru içeri kaydırılır.
-2. Etiket diğer tarafa alınır (kamera da ona göre aynalanır).
-3. İstatistik satırı en fazla %25 küçültülür.
-4. İstatistik iki satıra bölünür.
+Koşulları sağlayan yerler (county'nin solu ya da sağı, yukarı ya da aşağı kaydırılmış) arasından eyaletin karasına en az binen seçilir: önce su, sonra eyalet dışı. Komşu eyaletlerin karası %25 ağırlıkla sayılır. Yazılar kıyı çizgisine yapışmasın diye kara ölçülürken bloğa 16 px pay eklenir. Yakın durumlarda varsayılan yere (county merkezinin ekran genişliğinin %19'u kadar solu ya da sağı, biraz yukarısı) yakın olan kazanır. Başlangıç tarafı `county_focus`'ta etiket bölgesinin eyaletle daha az örtüştüğü taraftır (`engine/framing.py` → `label_side`), `state_map`'te soldur. Diğer tarafa geçmek küçük bir ceza alır ve kamera da aynalanır. Örneğin `county_focus`'ta, Florida'da St. Lucie, Miami-Dade ve Highlands'ta etiket Atlantik'e, Lee, Charlotte, Pasco ve Polk'ta Meksika Körfezi'ne, Walton'da county'nin altına düşer. Suda ya da eyalet dışında yer yoksa etiket karaya konur; yazılardaki kontür okunurluğu korur.
 
-Son çare olarak sığmayan satır küçültülür. Kısa metinlerde (ör. örnek projedeki Charlotte) etiket varsayılan yerinde kalır. Kural `scenes/maplib.py` içindeki `MapLayers.place_label` metodundadır. Etiket yazılarında (ad, alt yazı, istatistik) `bg_dark` renginde yaklaşık 4 px kontür vardır; harita üstüne düştüklerinde de okunurlar.
+Blok hiçbir yere sığmazsa sırayla şunlar denenir:
+
+1. İstatistik satırı en fazla %25 küçültülür.
+2. İstatistik iki satıra bölünür.
+
+Son çare olarak sığmayan satır küçültülür. Kısa metinlerde (ör. örnek projedeki Charlotte) etiket varsayılan yerinde kalır. Kural `scenes/maplib.py` içindeki `MapLayers.place_label` ve `MapLayers._search` metotlarındadır, ağırlıklar dosyanın başındaki sabitlerdir. Etiket yazılarında (ad, alt yazı, istatistik) `bg_dark` renginde yaklaşık 4 px kontür vardır; harita üstüne düştüklerinde de okunurlar.
 
 **Soluklaşma:** Vurgu sırasında diğer county'ler renk tonunu korur; doygunlukları %55, parlaklıkları %50 azalır. Kırmızı ve altın zemin rengine karışıp çamurlaşmaz.
 
@@ -218,7 +228,7 @@ Zaman çizelgesi (5 sn temel süre):
 
 | Saniye | Olay |
 |---|---|
-| 0,0–0,4 | Eyalet kadrajı, county'ler boyalı, neon sınır çizili, hareket yok |
+| 0,0–0,4 | Ortalı eyalet kadrajı, county'ler boyalı, neon sınır çizili, hareket yok |
 | 0,4–2,2 | Kamera vurgulanan county'ye yakınlaşır; diğer county'ler zemine doğru soluklaşır (0,6–1,6) |
 | 1,8–2,6 | County'nin kenar nabzı başlar, bağlantı çizgisi uzar |
 | 2,4–3,0 | County adı ve alt yazı belirir |

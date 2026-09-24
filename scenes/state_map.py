@@ -30,6 +30,8 @@ def legend_categories(p):
 # sol blok (başlık, alt başlık, açıklama) ile eyalet sınırı arasındaki en az boşluk (ekran oranı);
 # başlığın bunun için küçülebileceği en düşük oran
 LEFT_GAP, TITLE_MIN_SCALE = 0.03, 0.7
+# vurgu yoksa DRIFT_START'tan sahne sonuna (DRIFT_END, temel süre) kadar toplam DRIFT_ZOOM oranında yakınlaşma
+DRIFT_START, DRIFT_END, DRIFT_ZOOM = 8.5, 13.0, 0.03
 
 
 def state_left(g):
@@ -44,6 +46,15 @@ def block_right(fig, texts):
     r = fig.canvas.get_renderer()
     edges = [t.get_window_extent(renderer=r).x1 / fig.bbox.width for t in texts if t.get_text()]
     return max(edges, default=0.0)
+
+
+def legend_box(fig, items):
+    """Renk açıklamasının kapladığı ekran bölgesi (x0, y0, x1, y1; figür oranı, y aşağıdan yukarı)."""
+    r = fig.canvas.get_renderer()
+    bbs = [a.get_window_extent(renderer=r) for item in items for a in item]
+    W, H = fig.bbox.width, fig.bbox.height
+    return (min(b.x0 for b in bbs) / W, min(b.y0 for b in bbs) / H,
+            max(b.x1 for b in bbs) / W, max(b.y1 for b in bbs) / H)
 
 
 def fit_left_block(fig, g, p, title, texts):
@@ -79,10 +90,11 @@ def setup(ctx):
     has_focus = g.focus_idx is not None
 
     # ekran yazıları: başlık, alt başlık, renk açıklaması
-    T1 = fig.text(0.055, 0.56, p["title"] or g.state_name.upper(), fontproperties=F["place"],
+    T1 = fig.text(0.055, 0.56, p["title"] or g.state_name.upper(), parse_math=False, fontproperties=F["place"],
                   fontsize=150 * cap_scale(fig, F["place"]), color=C["text"], alpha=0, va="bottom")
     fit_text(fig, T1, 0.34)
-    T2 = fig.text(0.058, 0.545, p["subtitle"], fontproperties=F["label"], fontsize=26, color=C["muted"], alpha=0, va="top")
+    T2 = fig.text(0.058, 0.545, p["subtitle"], parse_math=False, fontproperties=F["label"], fontsize=26,
+                  color=C["muted"], alpha=0, va="top")
     cats = legend_categories(p)
     legend_items = []
     ly = 0.30 + max(0, len(cats) - 5) * 0.045
@@ -91,13 +103,15 @@ def setup(ctx):
         sq = mpatches.FancyBboxPatch((0.058, y - 0.012), 0.016, 0.026, boxstyle="round,pad=0.002",
                                      transform=fig.transFigure, facecolor=c["color"], edgecolor="none", alpha=0)
         fig.add_artist(sq)
-        tx = fig.text(0.082, y, c["label"], fontproperties=F["label"], fontsize=22, color=C["muted"], alpha=0, va="center")
+        tx = fig.text(0.082, y, c["label"], parse_math=False, fontproperties=F["label"], fontsize=22,
+                      color=C["muted"], alpha=0, va="center")
         legend_items.append((sq, tx))
 
     left_texts = [T1, T2, *(tx for _, tx in legend_items)]
     fit_left_block(fig, g, p, T1, left_texts)
     if has_focus:
-        m.place_label(fig)  # eyalet kadrajı kesinleştikten sonra (vurgu kamerası ona bağlı)
+        # eyalet kadrajı kesinleştikten sonra (vurgu kamerası ona bağlı); renk açıklaması vurguda da ekranda kalır
+        m.place_label(fig, avoid=[legend_box(fig, legend_items)])
 
     n_c = len(g.counties)
     rank, owner = g.rank, g.c_owner
@@ -106,10 +120,10 @@ def setup(ctx):
         # kamera
         if t < 3.8:
             cam = maplib.cam_lerp(g.cam_us, g.cam_state, seg(t, 0.4, 3.8))
-        elif t < 9.0 or not has_focus:
-            cam = g.cam_state
-        else:
-            cam = maplib.cam_lerp(g.cam_state, g.cam_focus, seg(t, 9.0, 11.2))
+        elif has_focus:
+            cam = maplib.cam_lerp(g.cam_state, g.cam_focus, seg(t, 9.0, 11.2)) if t >= 9.0 else g.cam_state
+        else:  # vurgu yoksa son animasyondan sonra sahne sonuna kadar çok yavaş yakınlaşma; eyalet yerinde kalır
+            cam = maplib.cam_zoom(g.cam_state, g.state_center, 1 - DRIFT_ZOOM * seg(t, DRIFT_START, DRIFT_END))
         m.set_camera(cam)
 
         # içeri girerken ABD kararır; sınır çizilir

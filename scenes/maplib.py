@@ -13,9 +13,20 @@ from engine.scene import cap_scale, ease, fit_text
 GLOW_SPECS = [(16, 0.075), (10, 0.15), (6, 0.33), (2.4, 1.0)]
 # vurgu sırasında diğer county'lerin tam soluklaşmada kaybettiği doygunluk ve parlaklık oranı
 DIM_SAT, DIM_VAL = 0.55, 0.5
-# vurgu etiketi yerleşimi (ekran oranı): kenar boşluğu, county ile arasındaki en az boşluk,
-# istatistik satırının en fazla küçülebileceği oran
-LABEL_MARGIN, LABEL_GAP, STAT_MIN_SCALE = 0.03, 0.02, 0.75
+# vurgu etiketi yerleşimi (ekran oranı): kenar boşluğu ve istatistik satırının en fazla küçülebileceği oran
+LABEL_MARGIN, STAT_MIN_SCALE = 0.03, 0.75
+# etiket bloğu ile vurgulanan county'nin sınır kutusu arasındaki en az boşluk; kara örtüşmesi ölçülürken bloğa
+# eklenen pay (yazı kıyı çizgisine yapışmasın). İkisi de 1080p pikseli.
+LABEL_PAD_PX, LAND_PAD_PX = 24, 16
+# varsayılan etiket yeri: county merkezinden yatay LABEL_DX (ekran oranı), dikey LABEL_DY (kamera genişliği oranı).
+# Satırlar (ad, alt yazı, istatistik) dirsek yüksekliğine göre LINE_DY kadar kaydırılır (kamera genişliği oranı).
+LABEL_DX, LABEL_DY, LINE_DY = 0.19, 0.06, (0.004, -0.004, -0.034)
+# bağlantı çizgisinin dirseği: yazıdan ELBOW uzakta, county merkezinden en az LEADER_MIN dışarıda (ekran oranı)
+ELBOW, LEADER_MIN = 0.01, 0.02
+# etiket yeri araması: adım (ekran oranı) ve puan ağırlıkları. Puan = eyalet karası payı + diğer kara payı * OTHER_LAND_W
+# + varsayılan yere uzaklık * MOVE_W (+ varsayılan yerden ayrılma ve taraf değiştirme cezaları); en düşük puan seçilir.
+SEARCH_STEP, OTHER_LAND_W, MOVE_W, LEAVE_DEFAULT, SWITCH_SIDE = 0.01, 0.25, 0.1, 0.02, 0.03
+LAND_GRID = (384, 216)  # kara maskesinin ekran çözünürlüğü (sütun, satır)
 # vurgu etiketi yazılarının zemin renginde kontürü (1080p'de yaklaşık 4 px; nokta = px * 72 / 100)
 LABEL_STROKE_PT = 4 * 72 / 100
 # istatistik yazısı koyu kategori renginde okunmuyorsa açılır: en az bu parlaklık (HSV value), text ile bu oranda karışım
@@ -33,6 +44,41 @@ def readable_on_dark(color, text_color):
     rgb = rgb * (1 - STAT_TEXT_MIX) + np.array(mcolors.to_rgb(text_color)) * STAT_TEXT_MIX
     h, s, v = mcolors.rgb_to_hsv(rgb)
     return tuple(mcolors.hsv_to_rgb([h, s, max(v, STAT_MIN_VALUE)]))
+
+
+def to_screen(cam, pts):
+    """Veri koordinatlarını kameranın ekran oranına çevirir: (n, 2) dizi, 0–1, y aşağıdan yukarı."""
+    pts = np.atleast_2d(np.asarray(pts, float))
+    return np.column_stack([(pts[:, 0] - cam[0]) / cam[2] + 0.5, (pts[:, 1] - cam[1]) / (cam[2] * 9 / 16) + 0.5])
+
+
+def land_tables(cam, state_rings, all_rings, grid=LAND_GRID):
+    """Kamerada görünen eyalet karası ve bütün kara (ABD) için alan toplamı tabloları (satır 0 = ekranın üstü)."""
+    from PIL import Image, ImageDraw
+
+    gw, gh = grid
+    tables = []
+    for rings in (state_rings, all_rings):
+        img = Image.new("L", (gw, gh), 0)
+        draw = ImageDraw.Draw(img)
+        for ring in rings:
+            s = to_screen(cam, ring)
+            if s[:, 0].max() < 0 or s[:, 0].min() > 1 or s[:, 1].max() < 0 or s[:, 1].min() > 1 or len(s) < 3:
+                continue
+            draw.polygon(np.column_stack([s[:, 0] * gw, (1 - s[:, 1]) * gh]).ravel().tolist(), fill=1)
+        table = np.zeros((gh + 1, gw + 1))
+        table[1:, 1:] = np.asarray(img, float).cumsum(0).cumsum(1)
+        tables.append(table)
+    return tables
+
+
+def rect_share(table, x0, x1, y0, y1):
+    """Ekran dikdörtgenlerinin (ekran oranı, y aşağıdan yukarı) maskede kalan payı (0–1); dizilerle çalışır."""
+    gh, gw = table.shape[0] - 1, table.shape[1] - 1
+    c0, c1 = (np.clip(np.round(np.asarray(v) * gw), 0, gw).astype(int) for v in (x0, x1))
+    r0, r1 = (np.clip(np.round((1 - np.asarray(v)) * gh), 0, gh).astype(int) for v in (y1, y0))
+    total = table[r1, c1] - table[r0, c1] - table[r1, c0] + table[r0, c0]
+    return total / np.maximum((c1 - c0) * (r1 - r0), 1)
 
 
 def split_two_lines(text):
@@ -91,15 +137,21 @@ def cam_lerp(a, b, t):
     return np.array([c[0], c[1], w])
 
 
+def cam_zoom(cam, anchor, k):
+    """Kamerayı k oranında daraltır (k<1 yaklaşır); anchor noktası ekrandaki yerinde kalır."""
+    return np.array([anchor[0] + (cam[0] - anchor[0]) * k, anchor[1] + (cam[1] - anchor[1]) * k, cam[2] * k])
+
+
 def focus_title(c):
     return (f"{c.name} {c.lsad}" if c.lsad else c.name).upper()
 
 
 class MapGeometry:
     """Seçili eyaletin projekte edilmiş geometrisi, county boyaması ve kameralar.
-    label_side: "left", "right" ya da "auto" (eyalete daha az binen taraf)."""
+    label_side: "left", "right" ya da "auto" (eyalete daha az binen taraf).
+    region: eyalet kadrajında eyaletin sığacağı ekran bölgesi (bkz. framing.state_frame)."""
 
-    def __init__(self, p, label_side="left"):
+    def __init__(self, p, label_side="left", region=framing.REGION):
         fips, _, self.state_name = geo.state(p["state"])
         us = geo.us_outlines(fips)
         self.us_polys = [r for _, rs in us for r in rs]
@@ -117,7 +169,9 @@ class MapGeometry:
         self.rank = np.argsort(np.argsort(-np.array([np.vstack(c.rings)[:, 1].mean() for c in cs])))
 
         self.cam_us = framing.box(np.vstack(self.us_polys), 0.06)
-        self.cam_state = framing.state_frame(np.vstack(self.state_rings), p["zoom"], p["shift_x"], p["shift_y"])
+        state_pts = np.vstack(self.state_rings)
+        self.state_center = (state_pts.min(0) + state_pts.max(0)) / 2
+        self.cam_state = framing.state_frame(state_pts, p["zoom"], p["shift_x"], p["shift_y"], region)
         self.focus_idx = next((i for i, c in enumerate(cs) if c.fips == p["focus"]), None)
         self.label_side = None
         self.focus_zoom = p["focus_zoom"]
@@ -199,15 +253,15 @@ class MapLayers:
             # etiket yazıları harita üstünde de okunsun diye zemin renginde ince kontür
             stroke = [pe.withStroke(linewidth=LABEL_STROKE_PT, foreground=C["bg_dark"])]
             self.t_name = ax.text(0, 0, p["focus_name"] or focus_title(g.counties[g.focus_idx]),
-                                  fontproperties=PLACE, fontsize=64 * PK, color=C["text"], va="bottom",
-                                  alpha=0, zorder=10, path_effects=stroke)
+                                  parse_math=False, fontproperties=PLACE, fontsize=64 * PK, color=C["text"],
+                                  va="bottom", alpha=0, zorder=10, path_effects=stroke)
             fit_text(fig, self.t_name, 0.30)
-            self.t_sub = ax.text(0, 0, p["focus_sub"], fontproperties=BAR, fontsize=24,
+            self.t_sub = ax.text(0, 0, p["focus_sub"], parse_math=False, fontproperties=BAR, fontsize=24,
                                  color=C["muted"], va="top", alpha=0, zorder=10, path_effects=stroke)
             key = g.c_key[g.focus_idx]
             # istatistik kategori renginde; koyu kategori renklerinde okunur açık ton (dolgu ve nabız değişmez)
             stat_color = readable_on_dark(g.col[key], C["text"]) if key != "none" else NEON
-            self.t_stat = ax.text(0, 0, p["focus_stat"], fontproperties=BARB, fontsize=26,
+            self.t_stat = ax.text(0, 0, p["focus_stat"], parse_math=False, fontproperties=BARB, fontsize=26,
                                   color=stat_color, va="top", alpha=0, zorder=10, path_effects=stroke)
             if place_label:
                 self.place_label(fig)
@@ -221,53 +275,93 @@ class MapLayers:
         self.is_focus = g.c_owner == g.focus_idx if g.focus_idx is not None else np.zeros(len(g.c_owner), bool)
 
     # ---------- vurgu etiketinin yerleşimi ----------
-    def _screen_x(self, side):
-        """Verilen tarafın vurgu kamerasında county merkezinin ve sol/sağ kenarının ekran x'i (0–1)."""
-        g = self.g
-        cam = g.focus_camera(side)
-        left = cam[0] - cam[2] / 2
-        xs = (g.focus_pts[:, 0] - left) / cam[2]
-        return (g.focus_center[0] - left) / cam[2], xs.min(), xs.max()
+    def _block(self, fig):
+        """Etiket bloğunun ekran oranı cinsinden genişliği ve dirsek yüksekliğine göre alt ve üst sınırı."""
+        r = fig.canvas.get_renderer()
+        W, H = fig.bbox.width, fig.bbox.height
+        width, lo, hi = 0.0, 0.0, 0.0
+        for t, dy in zip((self.t_name, self.t_sub, self.t_stat), LINE_DY):
+            if not t.get_text():
+                continue
+            bb = t.get_window_extent(renderer=r)
+            y = self.ax.transData.transform(t.get_position())[1]
+            width = max(width, bb.width / W)
+            lo = min(lo, (bb.y0 - y) / H + dy * 16 / 9)
+            hi = max(hi, (bb.y1 - y) / H + dy * 16 / 9)
+        return width, lo, hi
 
     def _room(self, side):
-        """Etiket county'ye en fazla yaklaştırıldığında sığabileceği genişlik (ekran oranı)."""
-        _, xl, xr = self._screen_x(side)
+        """Blok county'nin üstüne ya da altına alındığında sığabileceği en büyük genişlik (ekran oranı)."""
+        c = to_screen(self.g.focus_camera(side), self.g.focus_center)[0, 0]
         if side == "left":
-            return xl - LABEL_GAP - LABEL_MARGIN
-        return 1 - LABEL_MARGIN - (xr + LABEL_GAP)
+            return c - LEADER_MIN - ELBOW - LABEL_MARGIN
+        return 1 - LABEL_MARGIN - (c + LEADER_MIN + ELBOW)
 
-    def _plan(self, sides, width):
-        """Etiket bloğunun sığdığı ilk taraf ve varsayılan konumdan içeri kayma miktarı; sığmazsa None."""
-        for side in sides:
-            c, xl, xr = self._screen_x(side)
-            if side == "left":
-                anchor = c - 0.19  # sağa hizalı blok [anchor - width, anchor]
-                if anchor - width >= LABEL_MARGIN:
-                    return side, 0.0
-                shifted = LABEL_MARGIN + width
-                if shifted <= xl - LABEL_GAP:
-                    return side, shifted - anchor
-            else:
-                anchor = c + 0.19  # sola hizalı blok [anchor, anchor + width]
-                if anchor + width <= 1 - LABEL_MARGIN:
-                    return side, 0.0
-                shifted = 1 - LABEL_MARGIN - width
-                if shifted >= xr + LABEL_GAP:
-                    return side, shifted - anchor
-        return None
+    def _land(self, side):
+        if side not in self._land_cache:
+            self._land_cache[side] = land_tables(self.g.focus_camera(side), self.g.state_rings, self.g.us_polys)
+        return self._land_cache[side]
 
-    def place_label(self, fig):
-        """Etiketi ekran kenarlarından en az %3 içeride tutar. Sırayla dener: varsayılan yer, içeri kaydırma,
-        diğer taraf, istatistiği en fazla %25 küçültme, istatistiği iki satıra bölme; en son hepsini sığdırır."""
+    def _search(self, fig, sides):
+        """Etiket bloğunun en iyi yeri: (taraf, iç kenarın ekran x'i, dirseğin ekran y'si); yer yoksa None.
+        Koşullar: blok ekran kenarlarından LABEL_MARGIN içeride; county'nin sınır kutusuna ve place_label'a verilen
+        engellere LABEL_PAD_PX'ten fazla yaklaşmaz; iç kenarı county merkezinin dışında kalır (bağlantı çizgisi
+        yazıların üstünden geçmez).
+        Uyan yerler arasında eyaletin karasıyla en az örtüşen (su ya da eyalet dışı), varsayılan yere en yakın
+        olan seçilir; varsayılan yer ve tercih edilen taraf küçük bir öncelik alır."""
+        g = self.g
+        width, lo, hi = self._block(fig)
+        pad = np.array([LABEL_PAD_PX / 1920, LABEL_PAD_PX / 1080])
+        best = None
+        for k, side in enumerate(sides):
+            cam = g.focus_camera(side)
+            c, cy = to_screen(cam, g.focus_center)[0]
+            pts = to_screen(cam, g.focus_pts)
+            (bx0, by0), (bx1, by1) = pts.min(0) - pad, pts.max(0) + pad
+            sign = -1 if side == "left" else 1
+            x_def, y_def = c + sign * LABEL_DX, cy + LABEL_DY * 16 / 9
+            if side == "left":  # iç kenar = bloğun sağ kenarı
+                x_lo, x_hi = LABEL_MARGIN + width, c - LEADER_MIN - ELBOW
+            else:  # iç kenar = bloğun sol kenarı
+                x_lo, x_hi = c + LEADER_MIN + ELBOW, 1 - LABEL_MARGIN - width
+            y_lo, y_hi = LABEL_MARGIN - lo, 1 - LABEL_MARGIN - hi
+            if x_lo > x_hi or y_lo > y_hi:
+                continue
+            xs = np.append(np.arange(x_lo, x_hi, SEARCH_STEP), [x_hi] + ([x_def] if x_lo <= x_def <= x_hi else []))
+            ys = np.append(np.arange(y_lo, y_hi, SEARCH_STEP), [y_hi] + ([y_def] if y_lo <= y_def <= y_hi else []))
+            X, Y = np.meshgrid(xs, ys)
+            x0, x1 = (X - width, X) if side == "left" else (X, X + width)
+            y0, y1 = Y + lo, Y + hi
+            free = (x1 <= bx0) | (x0 >= bx1) | (y1 <= by0) | (y0 >= by1)
+            for ox0, oy0, ox1, oy1 in self._avoid:
+                free &= (x1 <= ox0 - pad[0]) | (x0 >= ox1 + pad[0]) | (y1 <= oy0 - pad[1]) | (y0 >= oy1 + pad[1])
+            if not free.any():
+                continue
+            state_t, all_t = self._land(side)
+            lx, ly = LAND_PAD_PX / 1920, LAND_PAD_PX / 1080
+            land = rect_share(state_t, x0 - lx, x1 + lx, y0 - ly, y1 + ly)
+            other = np.maximum(rect_share(all_t, x0 - lx, x1 + lx, y0 - ly, y1 + ly) - land, 0)
+            default = (X == x_def) & (Y == y_def) & (k == 0)
+            score = (land + OTHER_LAND_W * other + MOVE_W * np.hypot(X - x_def, (Y - y_def) * 9 / 16)
+                     + LEAVE_DEFAULT * ~default + SWITCH_SIDE * k)
+            score[~free] = np.inf
+            i = np.unravel_index(np.argmin(score), score.shape)
+            if best is None or score[i] < best[0]:
+                best = (score[i], side, X[i], Y[i])
+        return None if best is None else best[1:]
+
+    def place_label(self, fig, avoid=()):
+        """Etiketi yerleştirir (koşullar ve seçim için bkz. _search). avoid: etiketin binmemesi gereken, vurgu
+        sırasında ekranda kalan bölgeler (x0, y0, x1, y1; ekran oranı, y aşağıdan yukarı). Blok hiçbir yere
+        sığmazsa sırayla dener: istatistiği en fazla %25 küçültme, istatistiği iki satıra bölme; en son sığmayan
+        satırları küçültür."""
         g = self.g
         texts = [self.t_name, self.t_sub, self.t_stat]
         r = fig.canvas.get_renderer()
+        self._land_cache, self._avoid = {}, list(avoid)
 
         def width(t):
             return t.get_window_extent(renderer=r).width / fig.bbox.width if t.get_text() else 0.0
-
-        def block():
-            return max(width(t) for t in texts)
 
         sides = [g.label_side, "right" if g.label_side == "left" else "left"]
         room = max(self._room(s) for s in sides)
@@ -278,36 +372,38 @@ class MapLayers:
             if w > room:
                 self.t_stat.set_fontsize(max(base * STAT_MIN_SCALE, self.t_stat.get_fontsize() * room / w * 0.99))
 
-        plan = self._plan(sides, block())
+        plan = self._search(fig, sides)
         if plan is None and self.t_stat.get_text():
             shrink_stat()
-            plan = self._plan(sides, block())
+            plan = self._search(fig, sides)
         if plan is None and len(self.t_stat.get_text().split()) > 1:
             self.t_stat.set_text(split_two_lines(self.t_stat.get_text()))
             self.t_stat.set_fontsize(base)
-            plan = self._plan(sides, block())
+            plan = self._search(fig, sides)
             if plan is None:
                 shrink_stat()
-                plan = self._plan(sides, block())
+                plan = self._search(fig, sides)
         if plan is None:  # son çare: sığmayan satırları en geniş boşluğa göre küçült
             side = max(sides, key=self._room)
             for t in texts:
                 if width(t) > self._room(side):
                     fit_text(fig, t, self._room(side))
-            plan = self._plan([side], block()) or (side, 0.0)
+            plan = self._search(fig, [side])
+        if plan is None:  # hiçbir koşul sağlanamıyor: varsayılan yer
+            cam = g.focus_camera(sides[0])
+            c, cy = to_screen(cam, g.focus_center)[0]
+            plan = (sides[0], c + (-1 if sides[0] == "left" else 1) * LABEL_DX, cy + LABEL_DY * 16 / 9)
 
-        side, shift = plan
+        side, sx, sy = plan
         g.set_label_side(side)
-        cx, cy = g.focus_center
-        fw = g.cam_focus[2]
+        cam = g.cam_focus
+        fw = cam[2]
+        lab_x, lab_y = cam[0] + (sx - 0.5) * fw, cam[1] + (sy - 0.5) * fw * 9 / 16
         if side == "right":
-            lab_x, ha = cx + 0.19 * fw + shift * fw, "left"
-            self.elbow = (lab_x - 0.01 * fw, cy + 0.06 * fw)
+            ha, self.elbow = "left", (lab_x - ELBOW * fw, lab_y)
         else:
-            lab_x, ha = cx - 0.19 * fw + shift * fw, "right"
-            self.elbow = (lab_x + 0.01 * fw, cy + 0.06 * fw)
-        lab_y = cy + 0.06 * fw
-        for t, dy in ((self.t_name, 0.004), (self.t_sub, -0.004), (self.t_stat, -0.034)):
+            ha, self.elbow = "right", (lab_x + ELBOW * fw, lab_y)
+        for t, dy in zip(texts, LINE_DY):
             t.set_ha(ha)
             t.set_position((lab_x, lab_y + dy * fw))
 

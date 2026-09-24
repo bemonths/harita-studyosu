@@ -5,6 +5,7 @@ import subprocess
 import matplotlib
 
 matplotlib.use("Agg")
+matplotlib.rcParams["text.parse_math"] = False  # "$" işaretleri mathtext sanılmasın
 import matplotlib.pyplot as plt
 import numpy as np
 from PIL import Image

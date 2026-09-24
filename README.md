@@ -3,7 +3,7 @@
 ABD eyalet ve county haritaları için animasyonlu video üreten yerel bir araç. Ayarlar tarayıcıda açılan bir panelden yapılır, önizlenir ve tek tuşla videoya dönüştürülür.
 
 - **Eyalet haritası:** ABD'den seçilen eyalete inen kamera, neon sınır çizimi, kategorilere göre boyanan county'ler ve isteğe bağlı olarak vurgulanan bir county.
-- **County odak:** boyalı eyalet haritasından anlatılan county'ye yakınlaşma ve etiketi. Videonun county bölümlerini açmak için. Etiket, county'nin deniz ya da eyalet dışı tarafına kendiliğinden yerleşir.
+- **County odak:** boyalı eyalet haritasından anlatılan county'ye yakınlaşma ve etiketi. Videonun county bölümlerini açmak için. Açılışta eyalet ekranın ortasındadır. Etiket county'nin üstüne binmez, mümkünse deniz ya da eyalet dışı bir yere kendiliğinden yerleşir.
 - **Fiyat merdiveni:** bir evin fiyat geçmişi, indirim sayaçları ve alış fiyatıyla karşılaştırma.
 - **Çıktı:** 1920x1080, 30 kare/sn. Her sahne ayrı bir dosya olarak alınabilir, sahneler geçişlerle birleşik tek videoya da dönüştürülebilir. Arka plan koyu (MP4) ya da şeffaf (ProRes 4444 .mov) olabilir.
 

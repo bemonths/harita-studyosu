@@ -68,6 +68,7 @@ def cap_scale(fig, prop, ref=0.70):
 
 def fit_text(fig, text, max_frac):
     """Metin figür genişliğinin max_frac oranını aşıyorsa font boyutunu küçültür (sığıyorsa dokunmaz)."""
+    text.set_parse_math(False)  # "$94 ... $100" gibi metinler mathtext sanılmasın
     renderer = fig.canvas.get_renderer()
     limit = max_frac * fig.bbox.width
     for _ in range(3):

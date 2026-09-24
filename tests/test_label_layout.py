@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pytest
 
-from engine import assets
+from engine import assets, framing
 from scenes import REGISTRY, maplib, state_map
 
 SUB = "Santa Rosa Beach  ·  DeFuniak Springs"
@@ -22,7 +22,10 @@ def layout(scene_id, fips, stat=LONG_STAT, sub=SUB):
                                              "assign": ASSIGN})
     assert errors == {}
     fig = plt.figure(figsize=(19.2, 10.8), dpi=50)
-    g = maplib.MapGeometry(p, "auto" if scene_id == "county_focus" else "left")
+    if scene_id == "county_focus":
+        g = maplib.MapGeometry(p, "auto", region=framing.CENTER_REGION)
+    else:
+        g = maplib.MapGeometry(p, "left")
     m = maplib.MapLayers(fig, g, p, assets.fonts())
     m.set_camera(g.cam_focus)
     fig.canvas.draw()
@@ -45,31 +48,29 @@ def test_label_stays_inside_frame(scene_id, fips, stat):
 
 @pytest.mark.parametrize("scene_id", ["county_focus", "state_map"])
 @pytest.mark.parametrize("fips", ["12131", "12055"])
-def test_label_does_not_cover_county(scene_id, fips):
-    g, m, boxes, (W, _) = layout(scene_id, fips)
-    _, xl, xr = m._screen_x(g.label_side)
-    if g.label_side == "left":
-        assert max(b.x1 for b in boxes) / W <= xl + 1e-3
-    else:
-        assert min(b.x0 for b in boxes) / W >= xr - 1e-3
+@pytest.mark.parametrize("stat", [MEDIUM_STAT, LONG_STAT, HUGE_STAT])
+def test_label_does_not_cover_county(scene_id, fips, stat):
+    # etiket yazıları county'nin sınır kutusuna 24 px'ten (1080p) fazla yaklaşmaz
+    g, m, boxes, (W, H) = layout(scene_id, fips, stat)
+    pts = maplib.to_screen(g.cam_focus, g.focus_pts) * (W, H)
+    pad = maplib.LABEL_PAD_PX * W / 1920
+    (x0, y0), (x1, y1) = pts.min(0) - pad, pts.max(0) + pad
+    for b in boxes:
+        assert b.x1 <= x0 + 1 or b.x0 >= x1 - 1 or b.y1 <= y0 + 1 or b.y0 >= y1 - 1, (b, (x0, y0, x1, y1))
 
 
 @pytest.mark.parametrize("fips", ["12131", "12055"])
-def test_medium_stat_is_shifted_inward_only(fips):
-    # varsayılan yerde kenara taşan ama boşluğa sığan istatistik: yalnızca içeri kayar
-    g, m, _, _ = layout("county_focus", fips, MEDIUM_STAT)
-    cx = g.focus_center[0]
-    fw = g.cam_focus[2]
-    default_x = cx - 0.19 * fw if g.label_side == "left" else cx + 0.19 * fw
-    assert m.t_stat.get_position()[0] != pytest.approx(default_x)
+def test_medium_stat_keeps_size(fips):
+    # varsayılan yerde kenara taşan ama boş bir yere sığan istatistik: küçülmez, bölünmez
+    _, m, _, _ = layout("county_focus", fips, MEDIUM_STAT)
     assert m.t_stat.get_fontsize() == 26 and "\n" not in m.t_stat.get_text()
 
 
 @pytest.mark.parametrize("fips", ["12131", "12055"])
 def test_long_stat_is_shrunk_at_most_25_percent(fips):
-    # boşluğa kaydırınca da sığmayan istatistik: tek satırda en fazla %25 küçülür
+    # uzun istatistik tek satırda kalır; gerekirse en fazla %25 küçülür
     _, m, _, _ = layout("county_focus", fips, LONG_STAT)
-    assert 26 * maplib.STAT_MIN_SCALE <= m.t_stat.get_fontsize() < 26
+    assert 26 * maplib.STAT_MIN_SCALE <= m.t_stat.get_fontsize() <= 26
     assert "\n" not in m.t_stat.get_text()
 
 
@@ -85,7 +86,7 @@ def test_sample_label_position_unchanged():
     cx, cy = g.focus_center
     fw = g.cam_focus[2]
     assert g.label_side == "left"
-    assert m.t_stat.get_position() == (cx - 0.19 * fw, cy + 0.06 * fw - 0.034 * fw)
+    assert m.t_stat.get_position() == pytest.approx((cx - 0.19 * fw, cy + 0.06 * fw - 0.034 * fw))
     assert m.t_stat.get_fontsize() == 26
 
 

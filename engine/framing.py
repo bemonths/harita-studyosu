@@ -3,6 +3,8 @@ import numpy as np
 
 ASPECT = 16 / 9
 REGION = (0.40, 0.96, 0.08, 0.94)  # eyaletin sığacağı ekran bölgesi (x0, x1, y0, y1), y aşağıdan yukarı
+# county_focus açılış kadrajı: eyalet ortalı; üstte ve altta en az %8, yanlarda en az %6 boşluk
+CENTER_REGION = (0.06, 0.94, 0.08, 0.92)
 # Vurgu county'sinin ekrandaki yeri: orijinal Charlotte kadrajından (0.5+0.06, 0.5-(0.02/0.55)/(9/16))
 FOCUS_SCREEN = (0.56, 0.5 - (0.02 / 0.55) / (9 / 16))
 FOCUS_MIN, FOCUS_MAX = 0.05, 0.30  # vurgu county'sinin ekran genişliğindeki payı

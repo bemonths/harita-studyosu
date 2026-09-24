@@ -16,6 +16,11 @@ NUM_WORDS = ["ZERO", "ONE", "TWO", "THREE", "FOUR", "FIVE", "SIX", "SEVEN", "EIG
              "TWELVE", "THIRTEEN", "FOURTEEN", "FIFTEEN", "SIXTEEN", "SEVENTEEN", "EIGHTEEN", "NINETEEN", "TWENTY"]
 # Orijinal yerleşim 769 günlük ve 340.000 $'lık eksen için elle ayarlanmıştı; ofsetler bu oranlarla ölçeklenir.
 REF_DAYS, REF_SPAN = 769, 340000
+# fiyat çizgisinin çizildiği aralık (temel süre, sn); sayaç yanıp sönmesi ve etiketlerin belirmesi (sn)
+DRAW_START, DRAW_DUR = 2.4, 6.0
+FLASH_DUR, LABEL_FADE = 0.35, 0.25
+# piksel boşlukları 1080p içindir (dpi 100); önizlemede dpi'ye göre ölçeklenir
+TICK_GAP_PX, DIFF_GAP_PX = 24, 16
 
 PARAMS = [
     Text("kicker", "Üst etiket", default=""),
@@ -74,14 +79,57 @@ def y_axis(prices, paid=None):
 
 
 def x_ticks(listed, today):
+    """Aday zaman etiketleri: ilan ayı, aradaki her 1 Ocak ve TODAY. Çakışanları thin_ticks ayıklar."""
     end = (today - listed).days
     ticks = [(0, f"{MONTHS[listed.month - 1]} {listed.year}")]
     for year in range(listed.year + 1, today.year + 1):
         d = (dt.date(year, 1, 1) - listed).days
-        if d >= 0.06 * end and end - d >= 0.06 * end:
+        if 0 < d < end:
             ticks.append((d, str(year)))
     ticks.append((end, "TODAY"))
     return ticks
+
+
+def thin_ticks(ticks, centers, widths, min_gap):
+    """Ortalanmış etiketlerin piksel konum ve genişliklerine göre, komşusuyla arasında min_gap pikselden az
+    boşluk kalan yıl etiketlerini atlar. İlk (ilan) ve son (TODAY) etiket her zaman kalır."""
+    n = len(ticks)
+    if n <= 2:
+        return list(ticks)
+
+    def left(i):
+        return centers[i] - widths[i] / 2
+
+    def right(i):
+        return centers[i] + widths[i] / 2
+
+    kept = [0]
+    for i in range(1, n - 1):
+        if left(i) - right(kept[-1]) >= min_gap and left(n - 1) - right(i) >= min_gap:
+            kept.append(i)
+    kept.append(n - 1)
+    return [ticks[i] for i in kept]
+
+
+def change_groups(X, P, end, frac=0.06):
+    """Değişim etiketi grupları (1'den başlayan olay indeksleri). Zaman ekseninde birbirine end*frac'tan yakın
+    ardışık indirimler tek grupta toplanır; artışlar ve uzak indirimler tek başına kalır."""
+    groups = []
+    for i in range(1, len(X)):
+        drop = P[i] < P[i - 1]
+        last = groups[-1] if groups else None
+        if last and drop and last["drop"] and X[i] - X[last["idx"][-1]] < frac * end:
+            last["idx"].append(i)
+        else:
+            groups.append({"idx": [i], "drop": drop})
+    return [g["idx"] for g in groups]
+
+
+def group_label(P, idx):
+    """Tek değişim için "−$5K", grup için "5 CUTS −$25K" (grubun toplam düşüşü)."""
+    if len(idx) == 1:
+        return change_label(P[idx[0] - 1], P[idx[0]])
+    return f"{len(idx)} CUTS " + change_label(P[idx[0] - 1], P[idx[-1]])
 
 
 def n_cuts(prices):
@@ -102,6 +150,55 @@ def auto_diff_text(last, paid):
     if d >= 0:
         return f"STILL +${d:,}\nABOVE WHAT THEY PAID"
     return f"NOW −${-d:,}\nBELOW WHAT THEY PAID"
+
+
+def place_diff_text(fig, ax, text, paid_txt, X, P, paid, span, labels=()):
+    """Fark yazısını fiyat çizgisinin dik bölümlerine ve değişim etiketlerine binmeyecek yere koyar. Varsayılan yer
+    (sağda, alış fiyatı ile güncel fiyatın ortası) bir dik çizgiye ya da etikete biniyorsa yazı onun soluna, arada
+    en az 16 px kalacak şekilde kayar; eksenden ya da alış yazısının üstüne taşarsa alış çizgisinin altına alınır."""
+    r = fig.canvas.get_renderer()
+    gap = DIFF_GAP_PX * fig.dpi / 100
+    to_px = ax.transData.transform
+    x_default, y_mid = text.get_position()
+    bb = text.get_window_extent(renderer=r)
+    w, h = bb.width, bb.height
+    obstacles = []  # (sol x, sağ x, alt y, üst y) piksel: dik çizgiler ve değişim etiketleri
+    for i in range(1, len(X)):
+        (sx, a), (_, b) = to_px([(X[i], P[i - 1]), (X[i], P[i])])
+        obstacles.append((sx, sx, min(a, b), max(a, b)))
+    for lb in labels:
+        e = lb.get_window_extent(renderer=r)
+        obstacles.append((e.x0, e.x1, e.y0, e.y1))
+    pb = paid_txt.get_window_extent(renderer=r)
+    axes_left = to_px((ax.get_xlim()[0], 0))[0]
+
+    def fit(y0, y1):
+        """Yazının sağ kenarının piksel x'i (engellerden kaçacak kadar sola kaymış) ya da sığmazsa None."""
+        xr = to_px((x_default, 0))[0]
+        for _ in range(len(obstacles) + 1):
+            hits = [ox0 for ox0, ox1, oy0, oy1 in obstacles
+                    if oy0 <= y1 and oy1 >= y0 and xr - w - gap < ox1 and ox0 < xr + gap]
+            if not hits:
+                break
+            xr = min(hits) - gap
+        else:
+            return None
+        if xr - w < axes_left:
+            return None
+        if xr > pb.x0 and xr - w < pb.x1 and y1 > pb.y0 and y0 < pb.y1:  # alış yazısının üstüne biniyor
+            return None
+        return xr
+
+    yc = to_px((0, y_mid))[1]
+    xr = fit(yc - h / 2, yc + h / 2)
+    if xr is None:  # alış çizgisinin altına
+        y_mid = paid - span * 9000 / REF_SPAN
+        text.set_va("top")
+        yt = to_px((0, y_mid))[1]
+        xr = fit(yt - h, yt)
+        if xr is None:
+            xr = to_px((x_default, 0))[0]
+    text.set_position((ax.transData.inverted().transform((xr, 0))[0], y_mid))
 
 
 def check(p):
@@ -151,7 +248,14 @@ def setup(ctx):
     ax.tick_params(colors=MUTED, length=0, labelsize=18)
     ax.set_yticks(yticks)
     ax.set_yticklabels([money_axis(v) for v in yticks], fontproperties=BAR, fontsize=20)
+    # zaman etiketleri: gerçek piksel genişlikleri ölçülür, komşusuna 24 px'ten yakın yıl etiketi atlanır
     xt = x_ticks(listed, today)
+    tick_prop = BAR.copy()
+    tick_prop.set_size(20)
+    renderer = fig.canvas.get_renderer()
+    centers = ax.transData.transform([(d, Y0) for d, _ in xt])[:, 0]
+    widths = [renderer.get_text_width_height_descent(s, tick_prop, ismath=False)[0] for _, s in xt]
+    xt = thin_ticks(xt, centers, widths, TICK_GAP_PX * fig.dpi / 100)
     ax.set_xticks([d for d, _ in xt])
     ax.set_xticklabels([s for _, s in xt], fontproperties=BAR, fontsize=20)
     grid = [ax.axhline(v, color=LINE, lw=1, zorder=0) for v in yticks]
@@ -162,15 +266,26 @@ def setup(ctx):
     head_ring = ax.plot([], [], "o", color=NEON, ms=26, alpha=0.25, zorder=6)[0]
     fill = [None]
 
-    cut_dots, cut_labels = [], []
+    # her değişim ayrı nokta; yakın ardışık indirimler tek etikette ("5 CUTS −$25K")
+    t_pass = DRAW_START + DRAW_DUR * X / END  # çizgi başının her değişim noktasından geçtiği an
+    cut_dots = []
     for i in range(1, len(X)):
         color = RED if drops[i - 1] else NEON
         cut_dots.append(ax.plot([X[i]], [P[i]], "o", color=color, ms=9, alpha=0, zorder=8)[0])
-        above = i % 2 == 1
-        yv = P[i - 1] + SPAN * 14000 / REF_SPAN if above else P[i] - SPAN * 24000 / REF_SPAN
-        cut_labels.append(ax.text(X[i] if above else X[i] - END * 6 / REF_DAYS, yv, change_label(P[i - 1], P[i]),
-                                  fontproperties=BARB, fontsize=20, color=color,
-                                  ha="center" if above else "right", va="center", alpha=0, zorder=9))
+    groups = change_groups(X, P, END)
+    cut_labels = []  # (etiket, grubun son değişim indeksi)
+    for k, idx in enumerate(groups):
+        first, last = idx[0], idx[-1]
+        color = RED if drops[first - 1] else NEON
+        above = k % 2 == 0
+        # grup etiketi ilk indirimin hizasında durur (tek indirimdeki yerle aynı kural)
+        if above:
+            xv, yv, ha = (X[first] + X[last]) / 2, P[first - 1] + SPAN * 14000 / REF_SPAN, "center"
+        else:
+            xv, yv, ha = X[first] - END * 6 / REF_DAYS, P[first] - SPAN * 24000 / REF_SPAN, "right"
+        label = ax.text(xv, yv, group_label(P, idx), fontproperties=BARB, fontsize=20, color=color,
+                        ha=ha, va="center", alpha=0, zorder=9)
+        cut_labels.append((label, last))
 
     if paid is not None:
         paid_line = ax.plot([], [], color=AMBER, lw=2.4, ls=(0, (6, 5)), zorder=4)[0]
@@ -184,6 +299,7 @@ def setup(ctx):
         brk_txt = ax.text(END - END * 12 / REF_DAYS, (paid + P[-1]) / 2,
                           p["diff_text"] or auto_diff_text(int(P[-1]), paid), fontproperties=BARB, fontsize=22,
                           color=diff_color, ha="right", va="center", alpha=0, zorder=9, linespacing=1.1)
+        place_diff_text(fig, ax, brk_txt, paid_txt, X, P, paid, SPAN, [lb for lb, _ in cut_labels])
 
     # başlık
     K = fig.text(0.07, 0.905, p["kicker"], fontproperties=BAR, fontsize=26, color=NEON, alpha=0)
@@ -251,14 +367,20 @@ def setup(ctx):
             head_ring.set_data([], [])
         cur = price_at(xh) if t >= 2.4 else P[0]
         ncut = int(np.sum((X[1:] <= xh) & drops)) if t >= 2.4 else 0
+
+        def shown(i):
+            # değişim noktasının görünürlüğü: baş geçtikten sonra LABEL_FADE saniyede belirir (geçen süreye bağlı)
+            e = t - t_pass[i]
+            return ease(np.clip(e / LABEL_FADE, 0, 1)) if t >= DRAW_START and e >= 0 else 0
+
         flash = 0.0
         for i in range(1, len(X)):
-            dtc = (xh - X[i]) / END * 6.0  # baş bu noktayı geçeli kaç saniye oldu
-            a = ease(np.clip(dtc / 0.25, 0, 1)) if xh >= X[i] and t >= 2.4 else 0
-            cut_dots[i - 1].set_alpha(a)
-            cut_labels[i - 1].set_alpha(a)
-            if 0 <= dtc < 0.35 and xh >= X[i] and drops[i - 1]:
-                flash = max(flash, 1 - dtc / 0.35)
+            cut_dots[i - 1].set_alpha(shown(i))
+            e = t - t_pass[i]  # baş bu indirimi geçeli kaç saniye oldu
+            if drops[i - 1] and t < DRAW_START + DRAW_DUR and 0 <= e < FLASH_DUR:
+                flash = max(flash, 1 - e / FLASH_DUR)
+        for label, last in cut_labels:
+            label.set_alpha(shown(last))
         V1.set_text(f"${int(cur):,}")
         V1.set_color(tuple(white * (1 - flash) + red * flash))
         V2.set_text(f"{int(round(xh)) if t >= 2.4 else 0}")
@@ -273,6 +395,9 @@ def setup(ctx):
         brk.arrow_patch.set_alpha(ba)
         brk_txt.set_alpha(ba)
 
+    # testler ve hata ayıklama için kurulmuş parçalar
+    update.parts = {"ax": ax, "price": V1, "cuts": V3, "cut_dots": cut_dots, "cut_labels": [lb for lb, _ in cut_labels],
+                    "diff_text": brk_txt if paid is not None else None, "X": X, "P": P, "END": END}
     return update
 
 

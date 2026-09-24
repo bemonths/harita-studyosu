@@ -21,8 +21,9 @@ def test_x_ticks_match_original():
         (0, "AUG 2024"), (139, "2025"), (504, "2026"), (769, "TODAY")]
 
 
-def test_x_ticks_skip_year_too_close():
-    assert pl.x_ticks(dt.date(2024, 12, 28), dt.date(2025, 6, 1)) == [(0, "DEC 2024"), (155, "TODAY")]
+def test_x_ticks_lists_candidates_for_pixel_thinning():
+    # yakın yıl etiketi aday olarak döner; çakışıp çakışmadığına sahnede piksel ölçümüyle thin_ticks karar verir
+    assert pl.x_ticks(dt.date(2024, 12, 28), dt.date(2025, 6, 1)) == [(0, "DEC 2024"), (4, "2025"), (155, "TODAY")]
 
 
 def test_labels():

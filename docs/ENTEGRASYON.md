@@ -173,7 +173,12 @@ Zaman çizelgesi (13 sn temel süre):
 | `accent` | `#rrggbb` | `brand.json` → `colors.accent` | Fiyat çizgisi ve üst satır rengi |
 | `duration` | 5,75–23 sn | 11,5 | Sahne süresi |
 
-Eksen aralığı, tik aralığı ve yıl etiketleri veriden kendiliğinden hesaplanır.
+Eksen aralığı, tik aralığı ve yıl etiketleri veriden kendiliğinden hesaplanır. Ayrıca:
+
+- **Zaman etiketleri:** İlan ayı ve TODAY her zaman yazılır. Aradaki yıl etiketlerinin piksel genişliği ölçülür; komşusuyla arasında 24 px'ten az boşluk kalan yıl etiketi atlanır (ör. ilan Kasım 2024 ise "2025" etiketi).
+- **Değişim etiketleri:** Her değişimin noktası ayrı çizilir. Zaman ekseninde birbirine eksen uzunluğunun %6'sından yakın ardışık indirimler tek etikette birleşir ("5 CUTS −$25K"). Etiket grubun ilk indiriminin hizasında durur ve grubun son indirimi geçilince belirir. Artışlar birleşmez. İndirim sayacı birleşmeden etkilenmez.
+- **Sayaç yanıp sönmesi:** Fiyat sayacı, her indirimden sonra en fazla 0,35 sn kırmızıya döner. Süre, çizgi başının konumuna değil geçen zamana bağlıdır; çizim bitince (sahnenin 8,4. saniyesi, temel süre) sayaç her zaman normal renktedir.
+- **Fark yazısı:** Varsayılan yeri alış fiyatı ile güncel fiyatın ortası, grafiğin sağıdır. Orada fiyat çizgisinin dik bir bölümüne ya da bir değişim etiketine biniyorsa yazı onun soluna, arada en az 16 px kalacak şekilde kayar. Eksenden ya da alış yazısının üstüne taşarsa alış çizgisinin altına alınır.
 
 ### 5.3 `county_focus` ayarları
 

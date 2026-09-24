@@ -40,3 +40,8 @@ def compare(scene, params, prefix, times, rows_from=0):
 def test_state_map_matches_original():
     scene, p = sample_scene(0)
     compare(scene, p, "a", [2.0, 4.0, 6.0, 8.6, 10.5, 12.5])
+
+
+def test_price_ladder_matches_original():
+    scene, p = sample_scene(1)
+    compare(scene, p, "b", [1.0, 5.0, 8.0, 10.5])

@@ -44,4 +44,5 @@ def test_state_map_matches_original():
 
 def test_price_ladder_matches_original():
     scene, p = sample_scene(1)
-    compare(scene, p, "b", [1.0, 5.0, 8.0, 10.5])
+    # Görev 10: alt başlık başlığın altına taşındı; üstteki 320 piksel satır karşılaştırılmaz.
+    compare(scene, p, "b", [1.0, 5.0, 8.0, 10.5], rows_from=320)

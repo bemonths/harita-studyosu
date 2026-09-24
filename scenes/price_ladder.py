@@ -185,7 +185,7 @@ def setup(ctx):
     K = fig.text(0.07, 0.905, p["kicker"], fontproperties=BAR, fontsize=26, color=NEON, alpha=0)
     T = fig.text(0.068, 0.885, p["title"] or auto_title(n_cuts(list(P))), fontproperties=BEBAS, fontsize=92,
                  color="white", alpha=0, va="top")
-    S = fig.text(0.07, 0.765, p["subtitle"], fontproperties=BAR, fontsize=24, color=MUTED, alpha=0)
+    S = fig.text(0.07, 0.745, p["subtitle"], fontproperties=BAR, fontsize=24, color=MUTED, alpha=0, va="top")
 
     # sağ panel
     PX = 0.73

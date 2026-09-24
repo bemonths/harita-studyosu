@@ -7,11 +7,12 @@ Bu belge, Harita Stüdyosu'nu bir iş akışına ya da başka bir yapay zeka aja
 
 ## 1. Ne üretir?
 
-ABD harita animasyonlarını video olarak üretir. Çıktı 1920x1080, 30 kare/sn, ses yok. İki sahne tipi var:
+ABD harita animasyonlarını video olarak üretir. Çıktı 1920x1080, 30 kare/sn, ses yok. Üç sahne tipi var:
 
 | Sahne tipi (`type`) | Ne gösterir | Temel süre |
 |---|---|---|
 | `state_map` | ABD'den seçilen eyalete inen kamera, neon sınır çizimi, kategorilere göre boyanan county'ler, açıklama kutusu, isteğe bağlı olarak vurgulanan bir county ve etiketi | 13 sn |
+| `county_focus` | Boyalı eyalet kadrajından anlatılan county'ye yakınlaşma, kenar nabzı ve etiket. Başlık ve açıklama kutusu yok. County bölümlerini açmak için. | 5 sn |
 | `price_ladder` | Bir evin fiyat geçmişi (basamaklı çizgi), indirim etiketleri, fiyat/gün/indirim sayaçları, alış fiyatıyla karşılaştırma | 11,5 sn |
 
 Bir **proje**, bu sahnelerden oluşan sıralı bir listedir. Her sahne ayrı video olarak alınabilir, sahneler geçişli (crossfade) tek videoda da birleştirilebilir. Arka plan koyu degrade (MP4, H.264) ya da şeffaf (MOV, ProRes 4444, alfa kanallı) olabilir.
@@ -102,7 +103,7 @@ Doğrulama render'dan önce otomatik yapılır. Hatalı bir alan varsa render ba
 | `output.separate` | Her sahne ayrı dosya olarak kalsın mı. |
 | `output.combined` | Açık sahneler tek videoda birleştirilsin mi. Tek sahne açıksa bu ayar yok sayılır. İki seçenekten en az biri `true` olmalı. |
 | `output.transparent` | `true` ise arka plan şeffaf olur ve çıktı `.mov` (ProRes 4444) olarak yazılır. |
-| `scenes[].type` | `state_map` ya da `price_ladder`. Bilinmeyen tip yapısal hatadır. |
+| `scenes[].type` | `state_map`, `county_focus` ya da `price_ladder`. Bilinmeyen tip yapısal hatadır. |
 | `scenes[].enabled` | `false` olan sahne render edilmez. En az bir sahne açık olmalı. |
 | `scenes[].params` | Sahne ayarları. Eksik alanlar varsayılanla doldurulur. |
 
@@ -172,7 +173,35 @@ Zaman çizelgesi (13 sn temel süre):
 
 Eksen aralığı, tik aralığı ve yıl etiketleri veriden kendiliğinden hesaplanır.
 
-### 5.3 Hata biçimi
+### 5.3 `county_focus` ayarları
+
+Videonun county bölümlerini açar. `state_map` gibi ABD'den inmez: eyalet kadrajında, county'ler boyalı ve neon sınır çizili olarak başlar, anlatılan county'ye yakınlaşır. Başlık ve renk açıklaması kutusu yoktur.
+
+Ayarlar `state_map` ile aynı ad ve kurallara sahiptir (bkz. §5.1). Farklar şunlar:
+
+| Ayar | Kural | Varsayılan |
+|---|---|---|
+| `state`, `accent`, `categories`, `assign` | §5.1 ile aynı | §5.1 ile aynı |
+| `focus` | **Zorunlu.** Seçili eyalete ait 5 haneli FIPS; `null` ya da boş olamaz. | `null` (doldurulmalı) |
+| `focus_name`, `focus_sub`, `focus_stat`, `focus_zoom` | §5.1 ile aynı. Ad `place` yazı tipiyle, istatistik county'nin kategori renginde yazılır. | §5.1 ile aynı |
+| `zoom`, `shift_x`, `shift_y` | §5.1 ile aynı; başlangıçtaki eyalet kadrajını ayarlar | 1 / 0 / 0 |
+| `duration` | 2,5–10 sn | 5 |
+| `title`, `subtitle` | Bu sahnede yok | |
+
+**Etiket yerleşimi:** Etiket ve bağlantı çizgisi, county'nin hangi tarafında daha çok boş alan (su ya da eyalet dışı) varsa o tarafa konur. Bunun için etiket bölgesinin eyaletle örtüşmesi iki taraf için hesaplanır ve az olan seçilir; eşitlikte sol seçilir. Örneğin Florida'da St. Lucie ve Miami-Dade'de etiket sağa (Atlantik), Lee ve Charlotte'ta sola (Meksika Körfezi) düşer. Seçim `engine/framing.py` içindeki `label_side` fonksiyonundadır.
+
+Zaman çizelgesi (5 sn temel süre):
+
+| Saniye | Olay |
+|---|---|
+| 0,0–0,4 | Eyalet kadrajı, county'ler boyalı, neon sınır çizili, hareket yok |
+| 0,4–2,2 | Kamera vurgulanan county'ye yakınlaşır; diğer county'ler zemine doğru soluklaşır (0,6–1,6) |
+| 1,8–2,6 | County'nin kenar nabzı başlar, bağlantı çizgisi uzar |
+| 2,4–3,0 | County adı ve alt yazı belirir |
+| 3,0–3,6 | İstatistik satırı county'nin kategori renginde belirir |
+| 3,6–5,0 | Tutma; nabız sürer |
+
+### 5.4 Hata biçimi
 
 Doğrulama hataları şu biçimde bir listedir:
 
@@ -347,7 +376,7 @@ Komut yeni kareleri önce gözle kontrol için `out/referans_kontrol/` klasörü
 | `engine/compose.py` | Sahneleri birleştirme |
 | `engine/project.py` | Proje JSON doğrulama/yükleme/kaydetme |
 | `engine/cli.py` | Komut satırı |
-| `scenes/` | Sahne tanımları ve `REGISTRY` |
+| `scenes/` | Sahne tanımları ve `REGISTRY`. `scenes/maplib.py`, `state_map` ile `county_focus`un ortak harita katmanlarıdır. |
 | `app/server.py`, `app/jobs.py` | HTTP API ve render işleri |
 | `app/static/` | Arayüz (derleme adımı olmayan HTML/CSS/JS) |
 | `projects/` | Proje dosyaları (`ornek_florida.json`) |

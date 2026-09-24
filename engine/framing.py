@@ -29,11 +29,40 @@ def state_frame(pts, zoom=1.0, shift_x=0.0, shift_y=0.0, region=REGION):
     return np.array([sx - (rx - 0.5 + shift_x) * w, sy - (ry - 0.5 + shift_y) * w * 9 / 16, w])
 
 
-def focus_frame(county_pts, state_w, focus_zoom=0.55):
-    """Vurgu kamerası: county FOCUS_SCREEN noktasına oturur ve ekran genişliğinin %5–30'unu kaplar."""
+def focus_frame(county_pts, state_w, focus_zoom=0.55, side="left"):
+    """Vurgu kamerası: county ekranda FOCUS_SCREEN noktasına oturur ve ekran genişliğinin %5–30'unu kaplar.
+    side="left": etiket county'nin solunda (county sağa kayar); side="right": ayna görüntüsü."""
     (xmin, ymin), (xmax, ymax) = _bbox(county_pts)
     size = max(xmax - xmin, (ymax - ymin) * ASPECT)
     w = float(np.clip(state_w * focus_zoom, size / FOCUS_MAX, size / FOCUS_MIN))
     c = county_pts.mean(0)
     fx, fy = FOCUS_SCREEN
+    if side == "right":
+        fx = 1 - fx
     return np.array([c[0] - (fx - 0.5) * w, c[1] - (fy - 0.5) * w * 9 / 16, w])
+
+
+# Vurgu etiketinin kapladığı ekran bölgesi (x0, x1, y0, y1): county'nin solunda ya da sağında
+LABEL_BOX = {"left": (0.07, 0.38, 0.44, 0.62), "right": (0.62, 0.93, 0.44, 0.62)}
+
+
+def label_overlap(state_shape, cam, side):
+    """Etiket bölgesinin eyalet poligonuyla örtüşen oranı (0–1)."""
+    from shapely.geometry import box
+
+    x0, x1, y0, y1 = LABEL_BOX[side]
+    w, h = cam[2], cam[2] * 9 / 16
+    left, bottom = cam[0] - w / 2, cam[1] - h / 2
+    b = box(left + x0 * w, bottom + y0 * h, left + x1 * w, bottom + y1 * h)
+    return b.intersection(state_shape).area / b.area
+
+
+def label_side(state_rings, county_pts, state_w, focus_zoom=0.55):
+    """Etiketin konacağı taraf: eyaletin üstüne daha az binen taraf (eşitlikte sol).
+    Doğu kıyısındaki county'lerde sağ (okyanus), batı kıyısındakilerde sol olur."""
+    from shapely.geometry import Polygon
+    from shapely.ops import unary_union
+
+    shape = unary_union([Polygon(r).buffer(0) for r in state_rings])
+    overlap = {s: label_overlap(shape, focus_frame(county_pts, state_w, focus_zoom, s), s) for s in ("left", "right")}
+    return "right" if overlap["right"] < overlap["left"] - 1e-9 else "left"

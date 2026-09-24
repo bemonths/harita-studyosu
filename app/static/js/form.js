@@ -108,6 +108,11 @@ function stateSelect(p, value, id) {
 async function countySelect(p, value, scene, id) {
   const sel = h("select", { id });
   if (p.allow_none) sel.add(new Option("— yok —", ""));
+  else {
+    const hint = new Option("— county seçin —", "");
+    hint.disabled = true;
+    sel.add(hint);
+  }
   const geo = await geoFor(scene.params[p.state_param]);
   for (const c of [...geo.counties].sort((a, b) => a.name.localeCompare(b.name, "en"))) sel.add(new Option(c.name, c.fips));
   sel.value = value || "";

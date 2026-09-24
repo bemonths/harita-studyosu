@@ -27,7 +27,7 @@ def test_index(client):
 
 
 def test_scenes_and_states(client):
-    assert [s["id"] for s in client.get("/api/scenes").json()] == ["state_map", "price_ladder"]
+    assert [s["id"] for s in client.get("/api/scenes").json()] == ["state_map", "county_focus", "price_ladder"]
     states = client.get("/api/states").json()
     assert len(states) == 48 and states[0] == {"abbr": "AL", "name": "Alabama", "fips": "01"}
 

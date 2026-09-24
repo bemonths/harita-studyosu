@@ -4,7 +4,7 @@ Harita katmanları scenes/maplib.py ile county_focus sahnesiyle paylaşılır.""
 import matplotlib.patches as mpatches
 import numpy as np
 
-from engine import brand
+from engine import brand, framing
 from engine.params import Text
 from engine.scene import Scene, cap_scale, ease, fit_text, seg
 from scenes import maplib
@@ -27,11 +27,55 @@ def legend_categories(p):
     return [c for c in cats if c["key"] != "none" and c["key"] in used] + [c for c in cats if c["key"] == "none"]
 
 
+# sol blok (başlık, alt başlık, açıklama) ile eyalet sınırı arasındaki en az boşluk (ekran oranı);
+# başlığın bunun için küçülebileceği en düşük oran
+LEFT_GAP, TITLE_MIN_SCALE = 0.03, 0.7
+
+
+def state_left(g):
+    """Eyaletin eyalet kadrajındaki sol kenarının ekran x'i (0–1)."""
+    cam = g.cam_state
+    xmin = min(r[:, 0].min() for r in g.state_rings)
+    return (xmin - (cam[0] - cam[2] / 2)) / cam[2]
+
+
+def block_right(fig, texts):
+    """Yazıların en sağ kenarının ekran x'i (0–1)."""
+    r = fig.canvas.get_renderer()
+    edges = [t.get_window_extent(renderer=r).x1 / fig.bbox.width for t in texts if t.get_text()]
+    return max(edges, default=0.0)
+
+
+def fit_left_block(fig, g, p, title, texts):
+    """Sol blok ile eyalet arasında en az LEFT_GAP boşluk bırakır. Önce başlığı küçültür (en fazla %30),
+    yetmezse eyaleti sağa kaydırır; ekrana sığması için gerekirse eyalet kadrajı biraz küçülür."""
+    limit = state_left(g) - LEFT_GAP
+    if block_right(fig, texts) <= limit:
+        return
+    r = fig.canvas.get_renderer()
+    ext = title.get_window_extent(renderer=r)
+    room = limit - ext.x0 / fig.bbox.width
+    if title.get_text() and ext.width / fig.bbox.width > room > 0:
+        size = title.get_fontsize()
+        title.set_fontsize(max(size * TITLE_MIN_SCALE, size * room / (ext.width / fig.bbox.width) * 0.99))
+    if block_right(fig, texts) <= limit:
+        return
+    x0 = min(block_right(fig, texts) + LEFT_GAP, 0.7)
+    pts = np.vstack(g.state_rings)
+    g.set_state_camera(framing.state_frame(pts, p["zoom"], p["shift_x"], p["shift_y"],
+                                           region=(x0, 0.96, 0.08, 0.94)))
+    deficit = x0 - state_left(g)  # kullanıcı yakınlaştırması eyaleti yine sola taşırsa doğrudan kaydır
+    if deficit > 0:
+        cam = g.cam_state.copy()
+        cam[0] -= deficit * cam[2]
+        g.set_state_camera(cam)
+
+
 def setup(ctx):
     p, fig, F = ctx.p, ctx.fig, ctx.fonts
     C = brand.colors()
     g = maplib.MapGeometry(p, label_side="left")
-    m = maplib.MapLayers(fig, g, p, F)
+    m = maplib.MapLayers(fig, g, p, F, place_label=False)
     has_focus = g.focus_idx is not None
 
     # ekran yazıları: başlık, alt başlık, renk açıklaması
@@ -49,6 +93,11 @@ def setup(ctx):
         fig.add_artist(sq)
         tx = fig.text(0.082, y, c["label"], fontproperties=F["label"], fontsize=22, color=C["muted"], alpha=0, va="center")
         legend_items.append((sq, tx))
+
+    left_texts = [T1, T2, *(tx for _, tx in legend_items)]
+    fit_left_block(fig, g, p, T1, left_texts)
+    if has_focus:
+        m.place_label(fig)  # eyalet kadrajı kesinleştikten sonra (vurgu kamerası ona bağlı)
 
     n_c = len(g.counties)
     rank, owner = g.rank, g.c_owner
@@ -92,6 +141,8 @@ def setup(ctx):
             m.set_focus(glow_on=seg(t, 9.6, 10.2), pulse_t=t - 9.6, leader=ease(seg(t, 10.3, 10.9)),
                         name=ease(seg(t, 10.7, 11.3)), stat=ease(seg(t, 11.4, 12.0)))
 
+    # testler ve hata ayıklama için kurulmuş parçalar
+    update.geometry, update.layers, update.left_texts = g, m, left_texts
     return update
 
 

@@ -29,13 +29,29 @@ def state_frame(pts, zoom=1.0, shift_x=0.0, shift_y=0.0, region=REGION):
     return np.array([sx - (rx - 0.5 + shift_x) * w, sy - (ry - 0.5 + shift_y) * w * 9 / 16, w])
 
 
-def focus_frame(county_pts, state_w, focus_zoom=0.55, side="left"):
-    """Vurgu kamerası: county ekranda FOCUS_SCREEN noktasına oturur ve ekran genişliğinin %5–30'unu kaplar.
-    side="left": etiket county'nin solunda (county sağa kayar); side="right": ayna görüntüsü."""
+def focus_point(rings):
+    """County'nin odak noktası: en büyük parçasının içinde, kenarlarından en uzak nokta (polylabel).
+    Köşe ortalaması girintili kıyılarda ya da çok parçalı county'lerde county dışına düşebildiği için kullanılmaz."""
+    from shapely.geometry import Polygon
+    from shapely.ops import polylabel
+
+    parts = []
+    for r in rings:
+        poly = Polygon(r).buffer(0)
+        parts.extend(poly.geoms if poly.geom_type == "MultiPolygon" else [poly])
+    big = max((q for q in parts if not q.is_empty), key=lambda q: q.area)
+    minx, miny, maxx, maxy = big.bounds
+    pt = polylabel(big, tolerance=max(maxx - minx, maxy - miny) / 500)
+    return np.array([pt.x, pt.y])
+
+
+def focus_frame(county_pts, state_w, focus_zoom=0.55, side="left", center=None):
+    """Vurgu kamerası: county'nin odak noktası (center; verilmezse köşe ortalaması) ekranda FOCUS_SCREEN'e oturur,
+    county ekran genişliğinin %5–30'unu kaplar. side="left": etiket solda (county sağa kayar); "right": ayna görüntüsü."""
     (xmin, ymin), (xmax, ymax) = _bbox(county_pts)
     size = max(xmax - xmin, (ymax - ymin) * ASPECT)
     w = float(np.clip(state_w * focus_zoom, size / FOCUS_MAX, size / FOCUS_MIN))
-    c = county_pts.mean(0)
+    c = county_pts.mean(0) if center is None else center
     fx, fy = FOCUS_SCREEN
     if side == "right":
         fx = 1 - fx
@@ -57,12 +73,13 @@ def label_overlap(state_shape, cam, side):
     return b.intersection(state_shape).area / b.area
 
 
-def label_side(state_rings, county_pts, state_w, focus_zoom=0.55):
+def label_side(state_rings, county_pts, state_w, focus_zoom=0.55, center=None):
     """Etiketin konacağı taraf: eyaletin üstüne daha az binen taraf (eşitlikte sol).
     Doğu kıyısındaki county'lerde sağ (okyanus), batı kıyısındakilerde sol olur."""
     from shapely.geometry import Polygon
     from shapely.ops import unary_union
 
     shape = unary_union([Polygon(r).buffer(0) for r in state_rings])
-    overlap = {s: label_overlap(shape, focus_frame(county_pts, state_w, focus_zoom, s), s) for s in ("left", "right")}
+    overlap = {s: label_overlap(shape, focus_frame(county_pts, state_w, focus_zoom, s, center), s)
+               for s in ("left", "right")}
     return "right" if overlap["right"] < overlap["left"] - 1e-9 else "left"

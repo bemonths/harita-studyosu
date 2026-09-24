@@ -1,6 +1,7 @@
 """Harita sahnelerinin (state_map, county_focus) ortak parçaları: ayar tanımları, geometri, kameralar ve
 çizim katmanları. Katmanlar state_map'teki sırayla oluşturulur; sıra değişirse görünüm de değişir."""
 import matplotlib.colors as mcolors
+import matplotlib.patheffects as pe
 import numpy as np
 from matplotlib.collections import PolyCollection
 
@@ -15,6 +16,23 @@ DIM_SAT, DIM_VAL = 0.55, 0.5
 # vurgu etiketi yerleşimi (ekran oranı): kenar boşluğu, county ile arasındaki en az boşluk,
 # istatistik satırının en fazla küçülebileceği oran
 LABEL_MARGIN, LABEL_GAP, STAT_MIN_SCALE = 0.03, 0.02, 0.75
+# vurgu etiketi yazılarının zemin renginde kontürü (1080p'de yaklaşık 4 px; nokta = px * 72 / 100)
+LABEL_STROKE_PT = 4 * 72 / 100
+# istatistik yazısı koyu kategori renginde okunmuyorsa açılır: en az bu parlaklık (HSV value), text ile bu oranda karışım
+STAT_MIN_VALUE, STAT_TEXT_MIX = 0.65, 0.45
+# odaktaki county kategorisizse (none) üzerine binen vurgu rengi dolgusunun opaklığı
+NONE_FOCUS_TINT = 0.3
+
+
+def readable_on_dark(color, text_color):
+    """Koyu zeminde okunur renk: parlaklığı yeterliyse aynen, değilse text rengiyle %45 karışmış ve
+    parlaklığı en az 0,65'e çıkarılmış tonu döndürür."""
+    rgb = np.array(mcolors.to_rgb(color))
+    if mcolors.rgb_to_hsv(rgb)[2] >= STAT_MIN_VALUE:
+        return color
+    rgb = rgb * (1 - STAT_TEXT_MIX) + np.array(mcolors.to_rgb(text_color)) * STAT_TEXT_MIX
+    h, s, v = mcolors.rgb_to_hsv(rgb)
+    return tuple(mcolors.hsv_to_rgb([h, s, max(v, STAT_MIN_VALUE)]))
 
 
 def split_two_lines(text):
@@ -105,25 +123,35 @@ class MapGeometry:
         self.focus_zoom = p["focus_zoom"]
         if self.focus_idx is not None:
             self.focus_pts = np.vstack(cs[self.focus_idx].rings)
-            self.focus_center = self.focus_pts.mean(0)
+            # kamera hedefi, bağlantı çizgisi ve nokta: en büyük parçanın içindeki nokta
+            self.focus_center = framing.focus_point(cs[self.focus_idx].rings)
             if label_side == "auto":
-                label_side = framing.label_side(self.state_rings, self.focus_pts, self.cam_state[2], p["focus_zoom"])
+                label_side = framing.label_side(self.state_rings, self.focus_pts, self.cam_state[2], p["focus_zoom"],
+                                                self.focus_center)
             self.set_label_side(label_side)
 
     def focus_camera(self, side):
-        return framing.focus_frame(self.focus_pts, self.cam_state[2], self.focus_zoom, side)
+        return framing.focus_frame(self.focus_pts, self.cam_state[2], self.focus_zoom, side, self.focus_center)
 
     def set_label_side(self, side):
         """Etiket tarafını ve ona göre vurgu kamerasını belirler (etiket sığmazsa MapLayers değiştirir)."""
         self.label_side = side
         self.cam_focus = self.focus_camera(side)
 
+    def set_state_camera(self, cam):
+        """Eyalet kadrajını değiştirir (state_map sol blok için eyaleti kaydırınca); vurgu kamerası da yenilenir."""
+        self.cam_state = np.asarray(cam, float)
+        if self.focus_idx is not None:
+            self.cam_focus = self.focus_camera(self.label_side)
+
 
 class MapLayers:
     """Harita çizim katmanları: enlem-boylam, ABD zemini, eyalet dolgusu, county'ler, neon sınır,
     vurgu parlaması ve etiket. Değerler update() içinde set_* metotlarıyla verilir (durumsuz)."""
 
-    def __init__(self, fig, g, p, fonts):
+    def __init__(self, fig, g, p, fonts, place_label=True):
+        """place_label=False: etiket yerleşimi ertelenir; sahne eyalet kadrajını ayarladıktan sonra
+        place_label(fig) çağrılır (state_map sol blok boşluğu)."""
         C = brand.colors()
         PLACE, BAR, BARB = fonts["place"], fonts["label"], fonts["label_bold"]
         PK = cap_scale(fig, PLACE)  # yer adı yazı tipini tasarım boyutlarına eşitler
@@ -168,17 +196,25 @@ class MapLayers:
             cx, cy = g.focus_center
             self.leader = ax.plot([], [], color=C["text"], lw=1.6, alpha=0.0, zorder=9)[0]
             self.dot = ax.plot([cx], [cy], "o", color=C["text"], ms=9, alpha=0.0, zorder=9)[0]
+            # etiket yazıları harita üstünde de okunsun diye zemin renginde ince kontür
+            stroke = [pe.withStroke(linewidth=LABEL_STROKE_PT, foreground=C["bg_dark"])]
             self.t_name = ax.text(0, 0, p["focus_name"] or focus_title(g.counties[g.focus_idx]),
                                   fontproperties=PLACE, fontsize=64 * PK, color=C["text"], va="bottom",
-                                  alpha=0, zorder=10)
+                                  alpha=0, zorder=10, path_effects=stroke)
             fit_text(fig, self.t_name, 0.30)
             self.t_sub = ax.text(0, 0, p["focus_sub"], fontproperties=BAR, fontsize=24,
-                                 color=C["muted"], va="top", alpha=0, zorder=10)
+                                 color=C["muted"], va="top", alpha=0, zorder=10, path_effects=stroke)
             key = g.c_key[g.focus_idx]
+            # istatistik kategori renginde; koyu kategori renklerinde okunur açık ton (dolgu ve nabız değişmez)
+            stat_color = readable_on_dark(g.col[key], C["text"]) if key != "none" else NEON
             self.t_stat = ax.text(0, 0, p["focus_stat"], fontproperties=BARB, fontsize=26,
-                                  color=g.col[key] if key != "none" else NEON, va="top", alpha=0, zorder=10)
-            self._place_label(fig)
+                                  color=stat_color, va="top", alpha=0, zorder=10, path_effects=stroke)
+            if place_label:
+                self.place_label(fig)
 
+        # odaktaki county kategorisizse vurgu renginde düşük opaklıkta dolguyla görünür olur
+        self.focus_none = g.focus_idx is not None and g.c_key[g.focus_idx] == "none"
+        self.accent_rgb = np.array(mcolors.to_rgb(NEON))
         self.base_hsv = mcolors.rgb_to_hsv(self.base_rgba[:, :3])
         self.surface_v = mcolors.rgb_to_hsv(mcolors.to_rgb(C["surface"]))[2]
         self.edge = np.array([[*mcolors.to_rgba(C["bg_dark"])[:3], 1.0]] * len(g.c_owner))
@@ -220,7 +256,7 @@ class MapLayers:
                     return side, shifted - anchor
         return None
 
-    def _place_label(self, fig):
+    def place_label(self, fig):
         """Etiketi ekran kenarlarından en az %3 içeride tutar. Sırayla dener: varsayılan yer, içeri kaydırma,
         diğer taraf, istatistiği en fazla %25 küçültme, istatistiği iki satıra bölme; en son hepsini sığdırır."""
         g = self.g
@@ -324,6 +360,9 @@ class MapLayers:
             # koyu renkler (ör. NOT ENOUGH DATA) zemin renginden daha karanlığa düşüp delik gibi görünmesin
             hsv[:, 2] = np.maximum(hsv[:, 2] * (1 - DIM_VAL * d), np.minimum(hsv[:, 2], self.surface_v))
             cols[:, :3] = mcolors.hsv_to_rgb(hsv)
+            if self.focus_none:
+                a = NONE_FOCUS_TINT * focus_dim
+                cols[self.is_focus, :3] = self.base_rgba[self.is_focus, :3] * (1 - a) + self.accent_rgb * a
         cols[:, 3] = appear * 0.95
         self.c_coll.set_facecolors(cols)
         ec = self.edge.copy()

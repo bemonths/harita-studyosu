@@ -116,7 +116,7 @@ Güncel ayar listesi, varsayılanlar ve sınırlar makine tarafından okunabilir
 | Ayar | Tip / kural | Varsayılan | Anlamı |
 |---|---|---|---|
 | `state` | 48 bitişik eyaletin iki harfli kısaltması (`FL`, `TX`…). AK, HI, PR ve DC seçilemez. | `FL` | Kameranın indiği eyalet |
-| `title` | metin, en fazla 200 karakter | `""` | Büyük başlık. Boşsa eyalet adı büyük harfle yazılır. Uzun başlık kendiliğinden küçültülür. |
+| `title` | metin, en fazla 200 karakter | `""` | Büyük başlık. Boşsa eyalet adı büyük harfle yazılır. Uzun başlık kendiliğinden küçültülür. Başlık, alt başlık ve açıklama kutusundan oluşan sol blok ile eyalet sınırı arasında en az ekran genişliğinin %3'ü kadar boşluk kalır: gerekirse önce başlık en fazla %30 küçülür, yetmezse eyalet sağa kaydırılır (ekrana sığması için gerekirse biraz küçülür). |
 | `subtitle` | metin | `""` | Başlığın altındaki satır |
 | `accent` | `#rrggbb` | `brand.json` → `colors.accent` | Neon sınır ve vurgu parlaması rengi |
 | `categories` | 2–7 öğe: `{key, label, color}`. `key` `^[a-z0-9_]{1,20}$` ve benzersiz, `label` 1–40 karakter, `color` `#rrggbb`. **Son öğenin anahtarı `none` olmalı.** | `brand.json` kategorileri (aşağıda) | Açıklama kutusu ve boyama renkleri. `none`, atanmamış county'lerin rengi ve etiketidir. Açıklama kutusunda yalnızca `assign` içinde kullanılan kategoriler (liste sırasıyla) ve en sonda `none` gösterilir. |
@@ -199,9 +199,15 @@ Ayarlar `state_map` ile aynı ad ve kurallara sahiptir (bkz. §5.1). Farklar şu
 3. İstatistik satırı en fazla %25 küçültülür.
 4. İstatistik iki satıra bölünür.
 
-Son çare olarak sığmayan satır küçültülür. Kısa metinlerde (ör. örnek projedeki Charlotte) etiket varsayılan yerinde kalır. Kural `scenes/maplib.py` içindeki `MapLayers._place_label` metodundadır.
+Son çare olarak sığmayan satır küçültülür. Kısa metinlerde (ör. örnek projedeki Charlotte) etiket varsayılan yerinde kalır. Kural `scenes/maplib.py` içindeki `MapLayers.place_label` metodundadır. Etiket yazılarında (ad, alt yazı, istatistik) `bg_dark` renginde yaklaşık 4 px kontür vardır; harita üstüne düştüklerinde de okunurlar.
 
 **Soluklaşma:** Vurgu sırasında diğer county'ler renk tonunu korur; doygunlukları %55, parlaklıkları %50 azalır. Kırmızı ve altın zemin rengine karışıp çamurlaşmaz.
+
+**Odak noktası:** Kamera hedefi, bağlantı çizgisi ve nokta, county'nin en büyük parçasının içinde kenarlardan en uzak noktayı kullanır (`engine/framing.py` → `focus_point`, polylabel). Köşe ortalaması girintili kıyılarda ya da çok parçalı county'lerde (ör. Charlotte, Monroe, Keweenaw) county dışına düşüyordu.
+
+**İstatistik rengi:** İstatistik satırı county'nin kategori rengindedir. Kategori rengi koyuysa (HSV parlaklığı 0,65'ten azsa, ör. `stable` `#3e6a8f`) yazı, kategori rengiyle `text` renginin %45 karışımıyla ve en az 0,65 parlaklıkla yazılır. County dolgusu ve kenar parlaması değişmez.
+
+**Kategorisiz odak:** Vurgulanan county `none` ise kenar parlaması ve istatistik `accent` rengindedir. Dolgusu da odak sırasında %30 opaklıkta `accent` ile boyanır, böylece koyu zeminde kaybolmaz.
 
 Zaman çizelgesi (5 sn temel süre):
 

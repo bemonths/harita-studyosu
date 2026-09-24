@@ -1,0 +1,6 @@
+.venv/
+out/
+fonts/
+counties.json
+state_outlines.json
+__pycache__/

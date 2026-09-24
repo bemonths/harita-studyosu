@@ -1,6 +1,10 @@
 .venv/
+__pycache__/
+.pytest_cache/
+data/
 out/
+reference/
+# eski yerleşim (Görev 15'teki temizliğe kadar)
 fonts/
 counties.json
 state_outlines.json
-__pycache__/

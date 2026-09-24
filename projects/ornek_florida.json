@@ -11,14 +11,6 @@
         "state": "FL",
         "title": "FLORIDA",
         "subtitle": "10 COUNTIES  ·  AUGUST 2026 DATA",
-        "accent": "#3ee6ff",
-        "categories": [
-          {"key": "buyers", "label": "BUYERS PULLED BACK", "color": "#ff5a4f"},
-          {"key": "price", "label": "PRICES BREAKING", "color": "#ffb020"},
-          {"key": "weak", "label": "WEAKENING", "color": "#e6d45a"},
-          {"key": "stable", "label": "HOLDING STEADY", "color": "#3b6694"},
-          {"key": "none", "label": "NOT ENOUGH DATA", "color": "#16233a"}
-        ],
         "assign": {
           "12001": "buyers", "12005": "weak", "12009": "stable", "12011": "stable", "12015": "price",
           "12017": "stable", "12019": "buyers", "12021": "price", "12031": "stable", "12033": "stable",
@@ -67,7 +59,6 @@
         "label_price": "ASKING PRICE",
         "label_days": "DAYS FOR SALE",
         "label_cuts": "PRICE CUTS",
-        "accent": "#3ee6ff",
         "duration": 11.5
       }
     }

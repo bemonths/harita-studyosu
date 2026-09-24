@@ -7,10 +7,10 @@ import matplotlib.colors as mcolors
 import matplotlib.pyplot as plt
 import numpy as np
 
+from engine import brand
 from engine.params import Color, Date, Number, PriceTable, Text
-from engine.scene import Scene, ease, seg
+from engine.scene import Scene, cap_scale, ease, fit_text, seg
 
-RED, AMBER, MUTED = "#ff5a4f", "#ffb020", "#8fb0d8"
 MONTHS = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"]
 NUM_WORDS = ["ZERO", "ONE", "TWO", "THREE", "FOUR", "FIVE", "SIX", "SEVEN", "EIGHT", "NINE", "TEN", "ELEVEN",
              "TWELVE", "THIRTEEN", "FOURTEEN", "FIFTEEN", "SIXTEEN", "SEVENTEEN", "EIGHTEEN", "NINETEEN", "TWENTY"]
@@ -31,7 +31,7 @@ PARAMS = [
     Text("label_price", "Fiyat etiketi", default="ASKING PRICE"),
     Text("label_days", "Gün etiketi", default="DAYS FOR SALE"),
     Text("label_cuts", "İndirim etiketi", default="PRICE CUTS"),
-    Color("accent", "Çizgi rengi (neon)", default="#3ee6ff", group="Renkler"),
+    Color("accent", "Çizgi rengi (neon)", default=brand.color("accent"), group="Renkler"),
 ]
 
 
@@ -112,8 +112,11 @@ def check(p):
 
 def setup(ctx):
     p, fig, F = ctx.p, ctx.fig, ctx.fonts
-    BEBAS, BAR, BARB = F["bebas"], F["semibold"], F["bold"]
-    NEON = p["accent"]
+    NUM, BAR, BARB = F["numbers"], F["label"], F["label_bold"]
+    C = brand.colors()
+    NEON, RED, MUTED, TEXT, LINE = p["accent"], C["loss"], C["muted"], C["text"], C["line"]
+    AMBER = brand.category_color("price")  # alış çizgisi ve fark oku
+    NK = cap_scale(fig, NUM)  # büyük rakam yazı tipini tasarım boyutlarına eşitler
     hist = p["history"]
     listed = dt.date.fromisoformat(hist[0]["date"])
     today = dt.date.fromisoformat(p["today"])
@@ -151,11 +154,11 @@ def setup(ctx):
     xt = x_ticks(listed, today)
     ax.set_xticks([d for d, _ in xt])
     ax.set_xticklabels([s for _, s in xt], fontproperties=BAR, fontsize=20)
-    grid = [ax.axhline(v, color="#1f3050", lw=1, zorder=0) for v in yticks]
+    grid = [ax.axhline(v, color=LINE, lw=1, zorder=0) for v in yticks]
 
     glow_specs = [(14, 0.06), (8, 0.14), (4.5, 0.3), (2.4, 1.0)]
     glow = [ax.plot([], [], color=NEON, lw=w, alpha=a, solid_joinstyle="miter", zorder=5)[0] for w, a in glow_specs]
-    head = ax.plot([], [], "o", color="white", ms=11, zorder=7)[0]
+    head = ax.plot([], [], "o", color=TEXT, ms=11, zorder=7)[0]
     head_ring = ax.plot([], [], "o", color=NEON, ms=26, alpha=0.25, zorder=6)[0]
     fill = [None]
 
@@ -175,16 +178,18 @@ def setup(ctx):
                            p["paid_text"] or auto_paid_text(paid, paid_year), fontproperties=BARB, fontsize=22,
                            color=AMBER, ha="left", va="bottom", alpha=0, zorder=9)
         bx = END + END * 8 / REF_DAYS
+        diff_color = AMBER if P[-1] >= paid else RED  # alış fiyatının altındaysa zarar rengi
         brk = ax.annotate("", xy=(bx, paid), xytext=(bx, P[-1]),
-                          arrowprops=dict(arrowstyle="<->", color=AMBER, lw=2.2), alpha=0, zorder=9)
+                          arrowprops=dict(arrowstyle="<->", color=diff_color, lw=2.2), alpha=0, zorder=9)
         brk_txt = ax.text(END - END * 12 / REF_DAYS, (paid + P[-1]) / 2,
                           p["diff_text"] or auto_diff_text(int(P[-1]), paid), fontproperties=BARB, fontsize=22,
-                          color=AMBER, ha="right", va="center", alpha=0, zorder=9, linespacing=1.1)
+                          color=diff_color, ha="right", va="center", alpha=0, zorder=9, linespacing=1.1)
 
     # başlık
     K = fig.text(0.07, 0.905, p["kicker"], fontproperties=BAR, fontsize=26, color=NEON, alpha=0)
-    T = fig.text(0.068, 0.885, p["title"] or auto_title(n_cuts(list(P))), fontproperties=BEBAS, fontsize=92,
-                 color="white", alpha=0, va="top")
+    T = fig.text(0.068, 0.885, p["title"] or auto_title(n_cuts(list(P))), fontproperties=NUM, fontsize=92 * NK,
+                 color=TEXT, alpha=0, va="top")
+    fit_text(fig, T, 0.88)
     S = fig.text(0.07, 0.745, p["subtitle"], fontproperties=BAR, fontsize=24, color=MUTED, alpha=0, va="top")
 
     # sağ panel
@@ -192,15 +197,24 @@ def setup(ctx):
 
     def block(y, label, big):
         lab = fig.text(PX, y, label, fontproperties=BAR, fontsize=24, color=MUTED, alpha=0)
-        val = fig.text(PX - 0.003, y - 0.012, "", fontproperties=BEBAS, fontsize=big, color="white", alpha=0, va="top")
+        val = fig.text(PX - 0.003, y - 0.012, "", fontproperties=NUM, fontsize=big * NK, color=TEXT, alpha=0, va="top")
         return lab, val
+
+    def fit_value(val, widest):
+        # sayaç metni her karede değişir; en geniş değere göre bir kez boyutlanır
+        val.set_text(widest)
+        fit_text(fig, val, 0.24)
+        val.set_text("")
 
     L1, V1 = block(0.66, p["label_price"], 118)
     L2, V2 = block(0.44, p["label_days"], 96)
     L3, V3 = block(0.25, p["label_cuts"], 96)
-    sep = [fig.add_artist(plt.Line2D([PX, 0.95], [y, y], transform=fig.transFigure, color="#1f3050", lw=1.2, alpha=0))
+    fit_value(V1, f"${int(P.max()):,}")
+    fit_value(V2, str(END))
+    fit_value(V3, str(len(X) - 1))
+    sep = [fig.add_artist(plt.Line2D([PX, 0.95], [y, y], transform=fig.transFigure, color=LINE, lw=1.2, alpha=0))
            for y in (0.475, 0.285)]
-    white, red = np.array(mcolors.to_rgb("white")), np.array(mcolors.to_rgb(RED))
+    white, red = np.array(mcolors.to_rgb(TEXT)), np.array(mcolors.to_rgb(RED))
 
     def update(t):
         ha = ease(seg(t, 0.0, 0.8))

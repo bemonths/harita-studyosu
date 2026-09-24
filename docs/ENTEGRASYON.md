@@ -38,9 +38,37 @@ py -3.12 -m venv .venv
 .\.venv\Scripts\python -c "from engine import assets; assets.ensure()"
 ```
 
-Son komut county sınırlarını (yaklaşık 3 MB) ve dört yazı tipini `data/` altına indirir. İnternet yalnızca bu adımda gerekir. Geliştirme ve test için ek olarak `requirements-dev.txt` kurulur.
+Son komut county sınırlarını (yaklaşık 3 MB) ve `brand.json`'da tanımlı yazı tiplerini (varsayılan: Cinzel, Anton, Barlow SemiBold/Bold/Regular) `data/` altına indirir. İnternet yalnızca bu adımda gerekir. Geliştirme ve test için ek olarak `requirements-dev.txt` kurulur.
 
 **Karakter kodlaması:** Windows'ta konsol kodlaması yerel ayara bağlıdır. Geliştirme bilgisayarında bu kodlama GBK idi ve Türkçe karakter basan Python kodu `UnicodeEncodeError` verdi. Motoru kendi Python kodunuzdan çağırırken ya da çıktısını okurken süreci `PYTHONUTF8=1` ortam değişkeniyle çalıştırın. `engine.cli`, `run_ui.py` ve `.bat` başlatıcıları bunu zaten kendileri ayarlar. JSON olayları her zaman UTF-8'dir.
+
+### 3.1 Marka dosyası (`brand.json`)
+
+Depo kökündeki `brand.json` kanalın renk paletini, varsayılan renk kategorilerini ve yazı tiplerini tanımlar. Yükleyici `engine/brand.py`'dir:
+
+- Dosya süreç başına bir kez okunur. Değişiklikten sonra arayüzü ya da komut satırını yeniden başlatın.
+- Dosya yoksa yerleşik varsayılanlar kullanılır. Eksik alanlar varsayılanlarla tamamlanır.
+- Hatalı bir değer (geçersiz renk, `none` ile bitmeyen kategori listesi gibi) açık bir hata mesajıyla reddedilir.
+
+| `colors` anahtarı | Varsayılan | Görevi |
+|---|---|---|
+| `bg_dark` / `bg_light` | `#07111d` / `#102338` | Arka plan degradesinin kenarı ve merkezi |
+| `surface` | `#0e1c2e` | ABD'deki diğer eyaletlerin dolgusu; vurgu sırasında county'lerin soluklaştığı renk |
+| `line` | `#23405e` | Eyalet kenarları, enlem-boylam çizgileri, fiyat merdiveninin ızgara ve ayırıcı çizgileri |
+| `text` | `#f4ecdd` | Başlıklar, yer adları, büyük sayaçlar |
+| `muted` | `#a9b4c2` | Alt başlıklar, açıklama kutusu yazıları, eksen etiketleri, sayaç başlıkları |
+| `accent` | `#ff7a1f` | Neon sınır, vurgulanan county'nin kenar parlaması, fiyat merdiveninin çizgisi ve üst satırı. Sahnelerdeki `accent` ayarının varsayılanıdır. |
+| `loss` | `#e0301e` | İndirim noktaları ve etiketleri; güncel fiyat alış fiyatının altındaysa fark oku ve yazısı |
+
+`categories`, `state_map` ve `county_focus` sahnelerinin varsayılan renk kategorileridir; kuralları §5.1'deki `categories` ayarıyla aynıdır. Fiyat merdiveninde alış fiyatı çizgisi ve yazısı `price` kategorisinin rengini kullanır.
+
+| `fonts` anahtarı | Varsayılan dosya | Görevi |
+|---|---|---|
+| `place` | `cinzel/Cinzel[wght].ttf` | Yer adları: eyalet başlığı, vurgulanan county adı |
+| `numbers` | `anton/Anton-Regular.ttf` | Büyük rakamlar ve büyük başlıklar: fiyat merdiveninin başlığı ve üç sayacı |
+| `label`, `label_bold`, `label_regular` | `barlow/Barlow-SemiBold.ttf`, `-Bold`, `-Regular` | Diğer bütün yazılar |
+
+Yazı tipi yolları Google Fonts deposunun `ofl/` klasörüne göredir ve `assets.ensure()` tarafından indirilir. Sahnelerdeki yazı boyutları büyük harf yüksekliğine göre ayarlanır (`engine.scene.cap_scale`). Bu sayede farklı oranlara sahip bir yazı tipi seçildiğinde yerleşim bozulmaz.
 
 ## 4. Önerilen iş akışı
 
@@ -87,8 +115,8 @@ Güncel ayar listesi, varsayılanlar ve sınırlar makine tarafından okunabilir
 | `state` | 48 bitişik eyaletin iki harfli kısaltması (`FL`, `TX`…). AK, HI, PR ve DC seçilemez. | `FL` | Kameranın indiği eyalet |
 | `title` | metin, en fazla 200 karakter | `""` | Büyük başlık. Boşsa eyalet adı büyük harfle yazılır. Uzun başlık kendiliğinden küçültülür. |
 | `subtitle` | metin | `""` | Başlığın altındaki satır |
-| `accent` | `#rrggbb` | `#3ee6ff` | Neon sınır rengi |
-| `categories` | 2–7 öğe: `{key, label, color}`. `key` `^[a-z0-9_]{1,20}$` ve benzersiz, `label` 1–40 karakter, `color` `#rrggbb`. **Son öğenin anahtarı `none` olmalı.** | 5 kategori (aşağıda) | Açıklama kutusu ve boyama renkleri. `none`, atanmamış county'lerin rengi ve etiketidir. |
+| `accent` | `#rrggbb` | `brand.json` → `colors.accent` | Neon sınır ve vurgu parlaması rengi |
+| `categories` | 2–7 öğe: `{key, label, color}`. `key` `^[a-z0-9_]{1,20}$` ve benzersiz, `label` 1–40 karakter, `color` `#rrggbb`. **Son öğenin anahtarı `none` olmalı.** | `brand.json` kategorileri (aşağıda) | Açıklama kutusu ve boyama renkleri. `none`, atanmamış county'lerin rengi ve etiketidir. |
 | `assign` | `{ "<5 haneli FIPS>": "<kategori key>" }` | `{}` | County boyaması. FIPS seçili eyalete ait olmalı. Listede olmayan county'ler `none` sayılır. |
 | `focus` | 5 haneli FIPS ya da `null` | `null` | Sahnenin sonunda yakınlaşılacak county. `null` ise kamera eyalette kalır. |
 | `focus_name` | metin | `""` | Vurgu etiketi. Boşsa `<AD> <LSAD>` büyük harfle yazılır (ör. `CHARLOTTE COUNTY`). |
@@ -99,15 +127,19 @@ Güncel ayar listesi, varsayılanlar ve sınırlar makine tarafından okunabilir
 | `shift_x`, `shift_y` | −0,5–0,5 | 0 | Eyaleti ekran oranı kadar sağa ya da yukarı kaydırır. |
 | `duration` | 6,5–26 sn | 13 | Sahne süresi. İç zamanlamalar orantılı ölçeklenir. |
 
-Varsayılan kategoriler (`key` → `label`):
+Varsayılan kategoriler (`brand.json`, `key` → `label`):
 
 | key | label | renk |
 |---|---|---|
-| `buyers` | BUYERS PULLED BACK | `#ff5a4f` |
-| `price` | PRICES BREAKING | `#ffb020` |
-| `weak` | WEAKENING | `#e6d45a` |
-| `stable` | HOLDING STEADY | `#3b6694` |
-| `none` | NOT ENOUGH DATA | `#16233a` |
+| `buyers` | BUYERS PULLED BACK | `#e0301e` |
+| `sellers` | SELLERS PULLING OUT | `#b5487a` |
+| `price` | PRICES BREAKING | `#e9b949` |
+| `weak` | WEAKENING | `#b89b72` |
+| `stable` | HOLDING STEADY | `#3e6a8f` |
+| `hot` | STILL HOT | `#3fa37a` |
+| `none` | NOT ENOUGH DATA | `#152538` |
+
+Proje dosyasında `categories` verilmezse bu liste kullanılır. `categories` verilirse o projeye özel liste geçerli olur.
 
 Zaman çizelgesi (13 sn temel süre):
 
@@ -135,7 +167,7 @@ Zaman çizelgesi (13 sn temel süre):
 | `paid_text` | metin | `""` | Boşsa `OWNER PAID $310,000 IN 2017` biçiminde üretilir. |
 | `diff_text` | metin, çok satırlı olabilir (`\n`) | `""` | Boşsa `STILL +$100,000\nABOVE WHAT THEY PAID` ya da `NOW −$X\nBELOW WHAT THEY PAID` üretilir. |
 | `label_price`, `label_days`, `label_cuts` | metin | `ASKING PRICE`, `DAYS FOR SALE`, `PRICE CUTS` | Sağ paneldeki sayaç başlıkları |
-| `accent` | `#rrggbb` | `#3ee6ff` | Çizgi rengi |
+| `accent` | `#rrggbb` | `brand.json` → `colors.accent` | Fiyat çizgisi ve üst satır rengi |
 | `duration` | 5,75–23 sn | 11,5 | Sahne süresi |
 
 Eksen aralığı, tik aralığı ve yıl etiketleri veriden kendiliğinden hesaplanır.
@@ -262,7 +294,7 @@ Depo kökü `sys.path` içinde olmalıdır. Tek kare için `engine.render.still_
 ## 10. Yeni sahne tipi eklemek (geliştiriciler için)
 
 1. `scenes/<id>.py` dosyası oluşturun. İçinde `PARAMS` listesi, `setup(ctx)` fonksiyonu ve `SCENE = Scene(id=..., title=..., base_duration=..., params=PARAMS, setup=setup, bg_center=(x, y))` tanımı bulunsun.
-2. `setup(ctx)` çizim nesnelerini `ctx.fig` üzerinde kurar ve `update(t)` döndürür. `ctx` içinde şunlar var: `p` (doğrulanmış ayarlar), `fonts` (`bebas`, `regular`, `semibold`, `bold`), `transparent` ve `dpi`.
+2. `setup(ctx)` çizim nesnelerini `ctx.fig` üzerinde kurar ve `update(t)` döndürür. `ctx` içinde şunlar var: `p` (doğrulanmış ayarlar), `fonts` (`place`, `numbers`, `label`, `label_bold`, `label_regular`), `transparent` ve `dpi`. Renkleri sabit yazmayın, `engine.brand.colors()` ile alın. Büyük yazılarda boyutu `engine.scene.cap_scale(fig, font)` çarpanıyla ayarlayın.
 3. `update(t)` için kurallar:
    - `t` her zaman temel süre cinsindendir; süre ölçeklemesini motor yapar.
    - **Durumsuz olmalıdır:** aynı `t` her zaman aynı kareyi vermeli. Önizleme zamanda geri gidebilir.
@@ -279,19 +311,23 @@ Depo kökü `sys.path` içinde olmalıdır. Tek kare için `engine.render.still_
 .\.venv\Scripts\python -m pytest -m slow    # tam video render testleri (~3 dk)
 ```
 
-`tests/test_regression.py`, `ornek_florida` projesinin karelerini orijinal koddan alınan referans karelerle karşılaştırır. Referans kareler (`reference/`) depoya konmadı; klasör yoksa bu testler atlanır.
+`tests/test_regression.py`, `ornek_florida` projesinin karelerini `reference/` klasöründeki referans karelerle karşılaştırır. Kare başına ortalama piksel farkı 1,5/255'in altında olmalı. Referans kareler depoya konmadı; klasör yoksa bu testler atlanır.
 
-Referansları yeniden üretmek için:
+Referanslar marka görünümüyle (`brand.json`) üretildi. Marka öncesi orijinal kodun kareleri, geliştirme bilgisayarında `reference/orijinal/` altında saklanıyor.
 
-1. Orijinal kodu ilk commit'ten (`b2f3daf`) ayrı bir klasöre çıkarın.
-2. Orada `scene_a.py` dosyasını `TEST=2.0,4.0,6.0,8.6,10.5,12.5`, `scene_b.py` dosyasını `TEST=1.0,5.0,8.0,10.5` ortam değişkeniyle çalıştırın.
-3. Oluşan `out/test_*.png` dosyalarını bu deponun `reference/` klasörüne kopyalayın.
+Görünüm bilerek değiştiğinde referansları yeniden üretin:
+
+```powershell
+.\.venv\Scripts\python -m tests.make_reference
+```
+
+Komut yeni kareleri önce gözle kontrol için `out/referans_kontrol/` klasörüne, sonra `reference/` klasörüne yazar. Eski referanslar silinmez, `reference/eski_<tarih-saat>/` klasörüne taşınır.
 
 ## 12. Sınırlar
 
 - Yalnızca 48 bitişik eyalet destekleniyor; Alaska, Hawaii, Porto Riko ve DC seçilemez. Ülke dışı haritalar yok.
 - Format sabit: 16:9, 1920x1080, 30 kare/sn. Dikey ya da kare format yok.
-- Video metinleri serbesttir ama yazı tipleri (Bebas Neue, Barlow) Latin alfabesi içindir.
+- Video metinleri serbesttir ama varsayılan yazı tipleri (Cinzel, Anton, Barlow) Latin alfabesi içindir.
 - Arayüzdeki önizleme tek kare gösterir, oynatma yoktur.
 - Şeffaf `.mov` dosyaları tarayıcıda oynatılmaz. Premiere, DaVinci Resolve ve Final Cut destekler.
 - HTTP API kimlik doğrulaması içermez ve yalnızca yerel kullanım içindir.
@@ -300,6 +336,7 @@ Referansları yeniden üretmek için:
 
 | Yol | İçerik |
 |---|---|
+| `brand.json`, `engine/brand.py` | Marka paleti, varsayılan kategoriler, yazı tipleri |
 | `engine/assets.py` | Veri ve font indirme, yollar |
 | `engine/geo.py` | Eyalet tablosu, Albers projeksiyonu, eyalet/county geometrisi |
 | `engine/importer.py` | CSV/Excel okuma, county eşleme |

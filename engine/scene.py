@@ -57,6 +57,15 @@ def seg(t, a, b):
     return np.clip((t - a) / (b - a), 0, 1)
 
 
+def cap_scale(fig, prop, ref=0.70):
+    """Yazı tipinin büyük harf yüksekliğini tasarım referansına (em'in %70'i) eşitleyen boyut çarpanı.
+    Sahne yazı boyutları bu referansa göre verilir; marka yazı tipi değişince yerleşim bozulmaz."""
+    p = prop.copy()
+    p.set_size(100)
+    _, h, _ = fig.canvas.get_renderer().get_text_width_height_descent("H", p, ismath=False)
+    return ref / (h / (100 * fig.dpi / 72))
+
+
 def fit_text(fig, text, max_frac):
     """Metin figür genişliğinin max_frac oranını aşıyorsa font boyutunu küçültür (sığıyorsa dokunmaz)."""
     renderer = fig.canvas.get_renderer()

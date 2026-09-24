@@ -9,11 +9,10 @@ import matplotlib.pyplot as plt
 import numpy as np
 from PIL import Image
 
-from engine import assets
-from engine.scene import FPS, H_IN, W_IN, SceneContext
+from matplotlib.colors import to_rgb
 
-BG0 = np.array([7, 13, 24]) / 255
-BG1 = np.array([16, 30, 52]) / 255
+from engine import assets, brand
+from engine.scene import FPS, H_IN, W_IN, SceneContext
 
 
 def ffmpeg_exe():
@@ -26,11 +25,12 @@ def ffmpeg_exe():
 
 
 def background(w, h, center):
-    """Orijinal sahnelerdeki radyal koyu degrade (satır 0 = üst)."""
+    """Radyal koyu degrade (satır 0 = üst): kenarlarda brand bg_dark, merkezde bg_light."""
+    bg0, bg1 = np.array(to_rgb(brand.color("bg_dark"))), np.array(to_rgb(brand.color("bg_light")))
     yy, xx = np.mgrid[0:h, 0:w]
     d = np.sqrt(((xx - w * center[0]) / w) ** 2 + ((yy - h * center[1]) / h) ** 2)
     g = np.clip(1 - d * 1.6, 0, 1)[..., None]
-    return np.dstack([BG0 * (1 - g) + BG1 * g, np.ones((h, w))])
+    return np.dstack([bg0 * (1 - g) + bg1 * g, np.ones((h, w))])
 
 
 class Frames:

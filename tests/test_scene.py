@@ -3,7 +3,8 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
-from engine.scene import ease, fit_text, seg
+from engine import assets
+from engine.scene import cap_scale, ease, fit_text, seg
 
 
 def test_duration_param(dummy_scene):
@@ -37,4 +38,16 @@ def test_fit_text():
     short = fig.text(0, 0.2, "FL", fontsize=150)
     fit_text(fig, short, 0.34)
     assert short.get_fontsize() == 150
+    plt.close(fig)
+
+
+def test_cap_scale_matches_reference_height():
+    fig = plt.figure(figsize=(19.2, 10.8), dpi=50)
+    F = assets.fonts()
+    k = cap_scale(fig, F["numbers"])
+    assert 0.7 < k < 0.95  # Anton'un büyük harfleri referanstan uzun
+    p = F["numbers"].copy()
+    p.set_size(100 * k)
+    _, h, _ = fig.canvas.get_renderer().get_text_width_height_descent("H", p, ismath=False)
+    assert abs(h / (100 * 50 / 72) - 0.70) < 0.01
     plt.close(fig)

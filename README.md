@@ -43,6 +43,10 @@ py -3.12 -m venv .venv
 - **Render:** Çıktı seçeneklerini işaretleyip "Render al"a basın. Dosyalar `out\<proje adı>\<tarih-saat>\` klasörüne yazılır; "Klasörü aç" ile açılır.
 - **Projeler:** "Kaydet" ayarları `projects\<ad>.json` dosyasına yazar. "Proje aç…" listesinden geri açılır. Hazır gelen `ornek_florida` projesi örnek Florida videosunu üretir.
 
+## Marka (renkler ve yazı tipleri)
+
+Videolardaki renkler, varsayılan renk kategorileri ve yazı tipleri depo kökündeki `brand.json` dosyasından gelir. Bu dosyayı değiştirip Harita Stüdyosu'nu yeniden başlatmanız yeterlidir; yeni yazı tipleri ilk açılışta indirilir. Dosya silinirse yerleşik varsayılanlar kullanılır. Ayrıntılar: [docs/ENTEGRASYON.md](docs/ENTEGRASYON.md) §3.1.
+
 ## Şeffaf arka plan
 
 Şeffaf çıktı ProRes 4444 (.mov) biçimindedir. Premiere Pro, DaVinci Resolve ve Final Cut Pro'da doğrudan açılır. Tarayıcı bu dosyayı oynatamaz; kurgu programında açın.
@@ -74,8 +78,11 @@ Görsel regresyon testleri `reference\` klasöründeki karelerle karşılaştır
 Veri ya da yazı tipi indirilemiyorsa aşağıdaki dosyaları tarayıcıyla indirip belirtilen yerlere koyun:
 
 - `https://raw.githubusercontent.com/plotly/datasets/master/geojson-counties-fips.json` → `data\counties.json`
-- `https://raw.githubusercontent.com/google/fonts/main/ofl/bebasneue/BebasNeue-Regular.ttf` → `data\fonts\`
+- `https://raw.githubusercontent.com/google/fonts/main/ofl/cinzel/Cinzel%5Bwght%5D.ttf` → `data\fonts\Cinzel[wght].ttf`
+- `https://raw.githubusercontent.com/google/fonts/main/ofl/anton/Anton-Regular.ttf` → `data\fonts\`
 - `https://raw.githubusercontent.com/google/fonts/main/ofl/barlow/Barlow-Regular.ttf`, `Barlow-SemiBold.ttf`, `Barlow-Bold.ttf` → `data\fonts\`
+
+Bu liste varsayılan marka yazı tipleri içindir. `brand.json` içinde başka yazı tipleri seçtiyseniz aynı adresin sonuna oradaki yolu ekleyin.
 
 ### Diğer sorunlar
 
@@ -97,4 +104,4 @@ Veri ya da yazı tipi indirilemiyorsa aşağıdaki dosyaları tarayıcıyla indi
 ## Kaynaklar
 
 - County sınırları: ABD Sayım Bürosu verisinden türetilmiş GeoJSON (plotly/datasets).
-- Yazı tipleri: Bebas Neue ve Barlow (Google Fonts, SIL Open Font License).
+- Yazı tipleri: Cinzel, Anton ve Barlow (Google Fonts, SIL Open Font License).

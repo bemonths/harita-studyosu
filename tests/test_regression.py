@@ -1,4 +1,5 @@
-"""Orijinal koddan alınan referans karelerle karşılaştırma (reference/ klasörü, Görev 1)."""
+"""ornek_florida projesinin karelerini reference/ klasöründeki referanslarla karşılaştırır.
+Referanslar marka görünümüyle (brand.json) üretildi; orijinal kodun kareleri reference/orijinal/ altında saklanıyor."""
 import json
 import os
 
@@ -44,5 +45,4 @@ def test_state_map_matches_original():
 
 def test_price_ladder_matches_original():
     scene, p = sample_scene(1)
-    # Görev 10: alt başlık başlığın altına taşındı; üstteki 320 piksel satır karşılaştırılmaz.
-    compare(scene, p, "b", [1.0, 5.0, 8.0, 10.5], rows_from=320)
+    compare(scene, p, "b", [1.0, 5.0, 8.0, 10.5, 11.0])

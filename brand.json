@@ -1,0 +1,28 @@
+{
+  "colors": {
+    "bg_dark": "#07111d",
+    "bg_light": "#102338",
+    "surface": "#0e1c2e",
+    "line": "#23405e",
+    "text": "#f4ecdd",
+    "muted": "#a9b4c2",
+    "accent": "#ff7a1f",
+    "loss": "#e0301e"
+  },
+  "categories": [
+    {"key": "buyers",  "label": "BUYERS PULLED BACK",  "color": "#e0301e"},
+    {"key": "sellers", "label": "SELLERS PULLING OUT", "color": "#b5487a"},
+    {"key": "price",   "label": "PRICES BREAKING",     "color": "#e9b949"},
+    {"key": "weak",    "label": "WEAKENING",           "color": "#b89b72"},
+    {"key": "stable",  "label": "HOLDING STEADY",      "color": "#3e6a8f"},
+    {"key": "hot",     "label": "STILL HOT",           "color": "#3fa37a"},
+    {"key": "none",    "label": "NOT ENOUGH DATA",     "color": "#152538"}
+  ],
+  "fonts": {
+    "place": "cinzel/Cinzel[wght].ttf",
+    "numbers": "anton/Anton-Regular.ttf",
+    "label": "barlow/Barlow-SemiBold.ttf",
+    "label_bold": "barlow/Barlow-Bold.ttf",
+    "label_regular": "barlow/Barlow-Regular.ttf"
+  }
+}

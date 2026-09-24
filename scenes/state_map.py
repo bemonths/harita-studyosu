@@ -5,23 +5,17 @@ import matplotlib.patches as mpatches
 import numpy as np
 from matplotlib.collections import PolyCollection
 
-from engine import framing, geo
+from engine import brand, framing, geo
 from engine.params import Categories, Color, CountyAssign, CountySelect, Number, StateSelect, Text
-from engine.scene import Scene, ease, fit_text, seg
+from engine.scene import Scene, cap_scale, ease, fit_text, seg
 
-DEFAULT_CATEGORIES = [
-    {"key": "buyers", "label": "BUYERS PULLED BACK", "color": "#ff5a4f"},
-    {"key": "price", "label": "PRICES BREAKING", "color": "#ffb020"},
-    {"key": "weak", "label": "WEAKENING", "color": "#e6d45a"},
-    {"key": "stable", "label": "HOLDING STEADY", "color": "#3b6694"},
-    {"key": "none", "label": "NOT ENOUGH DATA", "color": "#16233a"},
-]
+DEFAULT_CATEGORIES = brand.categories()
 
 PARAMS = [
     StateSelect("state", "Eyalet", default="FL"),
     Text("title", "Başlık", default="", auto=True, help="Boş bırakılırsa eyalet adı yazılır."),
     Text("subtitle", "Alt başlık", default=""),
-    Color("accent", "Sınır rengi (neon)", default="#3ee6ff", group="Renkler"),
+    Color("accent", "Sınır rengi (neon)", default=brand.color("accent"), group="Renkler"),
     Categories("categories", "Renk kategorileri", default=DEFAULT_CATEGORIES, group="Renkler"),
     CountyAssign("assign", "County boyama", default={}, group="County boyama",
                  state_param="state", categories_param="categories"),
@@ -51,7 +45,9 @@ def focus_title(c):
 
 def setup(ctx):
     p, fig, F = ctx.p, ctx.fig, ctx.fonts
-    BEBAS, BAR, BARB = F["bebas"], F["semibold"], F["bold"]
+    PLACE, BAR, BARB = F["place"], F["label"], F["label_bold"]
+    C = brand.colors()
+    PK = cap_scale(fig, PLACE)  # yer adı yazı tipini tasarım boyutlarına eşitler
     NEON = p["accent"]
     fips, _, state_name = geo.state(p["state"])
     cats = p["categories"]
@@ -86,18 +82,18 @@ def setup(ctx):
     for lon in range(-125, -64, 5):
         la = np.linspace(20, 52, 120)
         x, y = geo.albers(np.full_like(la, lon), la)
-        ax.plot(x, y, color="#1c2c47", lw=0.6, alpha=0.5, zorder=1)
+        ax.plot(x, y, color=C["line"], lw=0.6, alpha=0.5, zorder=1)
     for lat in range(20, 55, 5):
         lo = np.linspace(-130, -60, 200)
         x, y = geo.albers(lo, np.full_like(lo, lat))
-        ax.plot(x, y, color="#1c2c47", lw=0.6, alpha=0.5, zorder=1)
+        ax.plot(x, y, color=C["line"], lw=0.6, alpha=0.5, zorder=1)
 
-    us_coll = PolyCollection(us_polys, facecolors="#0f1b2e", edgecolors="#2b3f60", linewidths=0.8, zorder=2)
+    us_coll = PolyCollection(us_polys, facecolors=C["surface"], edgecolors=C["line"], linewidths=0.8, zorder=2)
     ax.add_collection(us_coll)
     fl_fill = PolyCollection(fl_rings, facecolors=NEON, edgecolors="none", alpha=0.0, zorder=3)
     ax.add_collection(fl_fill)
     base_rgba = np.array([mcolors.to_rgba(col[c_key[o]]) for o in c_owner])
-    c_coll = PolyCollection(c_polys, facecolors=base_rgba, edgecolors="#070d18", linewidths=0.9, zorder=4)
+    c_coll = PolyCollection(c_polys, facecolors=base_rgba, edgecolors=C["bg_dark"], linewidths=0.9, zorder=4)
     ax.add_collection(c_coll)
 
     # ana halka üzerinde neon sınır
@@ -108,7 +104,7 @@ def setup(ctx):
     glow = [ax.plot([], [], color=NEON, lw=w, alpha=a, solid_capstyle="round", zorder=6)[0] for w, a in glow_specs]
     isles = [r for r in fl_rings if r is not main]
     isle_lines = [ax.plot(r[:, 0], r[:, 1], color=NEON, lw=1.4, alpha=0.0, zorder=6)[0] for r in isles]
-    head = ax.plot([], [], "o", color="white", ms=7, alpha=0.0, zorder=7)[0]
+    head = ax.plot([], [], "o", color=C["text"], ms=7, alpha=0.0, zorder=7)[0]
 
     def partial(t):
         L = cum[-1] * t
@@ -125,25 +121,25 @@ def setup(ctx):
     if ch_idx is not None:
         for r in cs[ch_idx].rings:
             for w, a in [(12, 0.08), (6, 0.2), (2.2, 1.0)]:
-                ch_glow.append((ax.plot(r[:, 0], r[:, 1], color="#ffffff", lw=w, alpha=0.0, zorder=8)[0], a))
+                ch_glow.append((ax.plot(r[:, 0], r[:, 1], color=NEON, lw=w, alpha=0.0, zorder=8)[0], a))
         lab_x = ch_center[0] - 0.19 * CAM_CH[2]
         lab_y = ch_center[1] + 0.06 * CAM_CH[2]
-        leader = ax.plot([], [], color="white", lw=1.6, alpha=0.0, zorder=9)[0]
-        dot = ax.plot([ch_center[0]], [ch_center[1]], "o", color="white", ms=9, alpha=0.0, zorder=9)[0]
-        t_name = ax.text(lab_x, lab_y, p["focus_name"] or focus_title(cs[ch_idx]), fontproperties=BEBAS, fontsize=64,
-                         color="white", ha="right", va="bottom", alpha=0, zorder=10)
+        leader = ax.plot([], [], color=C["text"], lw=1.6, alpha=0.0, zorder=9)[0]
+        dot = ax.plot([ch_center[0]], [ch_center[1]], "o", color=C["text"], ms=9, alpha=0.0, zorder=9)[0]
+        t_name = ax.text(lab_x, lab_y, p["focus_name"] or focus_title(cs[ch_idx]), fontproperties=PLACE, fontsize=64 * PK,
+                         color=C["text"], ha="right", va="bottom", alpha=0, zorder=10)
         fit_text(fig, t_name, 0.30)
-        t_sub = ax.text(lab_x, lab_y, p["focus_sub"], fontproperties=BAR, fontsize=24, color="#a9c3e6",
+        t_sub = ax.text(lab_x, lab_y, p["focus_sub"], fontproperties=BAR, fontsize=24, color=C["muted"],
                         ha="right", va="top", alpha=0, zorder=10)
         stat_color = col[c_key[ch_idx]] if c_key[ch_idx] != "none" else NEON
         t_stat = ax.text(lab_x, lab_y, p["focus_stat"], fontproperties=BARB, fontsize=26, color=stat_color,
                          ha="right", va="top", alpha=0, zorder=10)
 
     # ekran yazıları
-    T1 = fig.text(0.055, 0.56, p["title"] or state_name.upper(), fontproperties=BEBAS, fontsize=150,
-                  color="white", alpha=0, va="bottom")
+    T1 = fig.text(0.055, 0.56, p["title"] or state_name.upper(), fontproperties=PLACE, fontsize=150 * PK,
+                  color=C["text"], alpha=0, va="bottom")
     fit_text(fig, T1, 0.34)
-    T2 = fig.text(0.058, 0.545, p["subtitle"], fontproperties=BAR, fontsize=26, color="#8fb0d8", alpha=0, va="top")
+    T2 = fig.text(0.058, 0.545, p["subtitle"], fontproperties=BAR, fontsize=26, color=C["muted"], alpha=0, va="top")
     legend_items = []
     ly = 0.30 + max(0, len(cats) - 5) * 0.045
     for i, c in enumerate(cats):
@@ -151,13 +147,13 @@ def setup(ctx):
         sq = mpatches.FancyBboxPatch((0.058, y - 0.012), 0.016, 0.026, boxstyle="round,pad=0.002",
                                      transform=fig.transFigure, facecolor=c["color"], edgecolor="none", alpha=0)
         fig.add_artist(sq)
-        tx = fig.text(0.082, y, c["label"], fontproperties=BAR, fontsize=22, color="#d6e4f5", alpha=0, va="center")
+        tx = fig.text(0.082, y, c["label"], fontproperties=BAR, fontsize=22, color=C["muted"], alpha=0, va="center")
         legend_items.append((sq, tx))
 
     n_c = len(cs)
     rank = np.argsort(np.argsort(-np.array([np.vstack(c.rings)[:, 1].mean() for c in cs])))
-    bgc = np.array([15 / 255, 27 / 255, 46 / 255])
-    edge = np.array([[7 / 255, 13 / 255, 24 / 255, 1.0]] * len(c_owner))
+    bgc = np.array(mcolors.to_rgb(C["surface"]))
+    edge = np.array([[*mcolors.to_rgb(C["bg_dark"]), 1.0]] * len(c_owner))
     is_focus = c_owner == ch_idx if ch_idx is not None else np.zeros(len(c_owner), bool)
 
     def update(t):

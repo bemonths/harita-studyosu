@@ -1,8 +1,12 @@
-"""Veri ve font dosyaları: yollar, indirme, eski yerleşimden taşıma, FontProperties."""
+"""Veri ve font dosyaları: yollar, indirme, eski yerleşimden taşıma, FontProperties.
+Hangi yazı tiplerinin kullanılacağı brand.json'daki "fonts" bölümünden gelir."""
 import os
 import shutil
+import urllib.parse
 import urllib.request
 from functools import lru_cache
+
+from engine import brand
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DATA = os.path.join(ROOT, "data")
@@ -11,20 +15,19 @@ COUNTIES = os.path.join(DATA, "counties.json")
 
 COUNTIES_URL = "https://raw.githubusercontent.com/plotly/datasets/master/geojson-counties-fips.json"
 FONT_BASE = "https://raw.githubusercontent.com/google/fonts/main/ofl/"
-FONTS = {
-    "bebas": "bebasneue/BebasNeue-Regular.ttf",
-    "regular": "barlow/Barlow-Regular.ttf",
-    "semibold": "barlow/Barlow-SemiBold.ttf",
-    "bold": "barlow/Barlow-Bold.ttf",
-}
 
 
 class AssetError(RuntimeError):
     pass
 
 
+def font_files():
+    """Yazı tipi görevi -> Google Fonts ofl/ altındaki göreli yol (brand.json)."""
+    return brand.fonts()
+
+
 def font_path(key):
-    return os.path.join(FONT_DIR, os.path.basename(FONTS[key]))
+    return os.path.join(FONT_DIR, os.path.basename(font_files()[key]))
 
 
 def _ok(path):
@@ -33,19 +36,20 @@ def _ok(path):
 
 def missing():
     """Eksik veri/font dosyalarının yolları."""
-    return [p for p in [COUNTIES] + [font_path(k) for k in FONTS] if not _ok(p)]
+    return [p for p in [COUNTIES] + [font_path(k) for k in font_files()] if not _ok(p)]
 
 
 def ensure(log=print):
     """Eksik dosyaları indirir. Eski yerleşimdeki (klasör kökü) dosyaları önce data/ altına taşır."""
     os.makedirs(FONT_DIR, exist_ok=True)
+    files = font_files()
     old = {os.path.join(ROOT, "counties.json"): COUNTIES}
-    for key in FONTS:
-        old[os.path.join(ROOT, "fonts", os.path.basename(FONTS[key]))] = font_path(key)
+    for key, rel in files.items():
+        old[os.path.join(ROOT, "fonts", os.path.basename(rel))] = font_path(key)
     for src, dst in old.items():
         if _ok(src) and not _ok(dst):
             shutil.move(src, dst)
-    jobs = [(COUNTIES_URL, COUNTIES)] + [(FONT_BASE + FONTS[k], font_path(k)) for k in FONTS]
+    jobs = [(COUNTIES_URL, COUNTIES)] + [(FONT_BASE + urllib.parse.quote(rel), font_path(k)) for k, rel in files.items()]
     for url, dest in jobs:
         if _ok(dest):
             continue
@@ -61,11 +65,12 @@ def ensure(log=print):
 
 @lru_cache(maxsize=None)
 def fonts():
-    """Anahtar -> FontProperties. Font dosyası eksikse AssetError."""
+    """Yazı tipi görevi (place, numbers, label, label_bold, label_regular) -> FontProperties.
+    Font dosyası eksikse AssetError."""
     from matplotlib import font_manager as fm
 
     out = {}
-    for key in FONTS:
+    for key in font_files():
         path = font_path(key)
         if not _ok(path):
             raise AssetError(f"Font eksik: {path}")

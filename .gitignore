@@ -4,3 +4,7 @@ __pycache__/
 data/
 out/
 reference/
+
+# FredPull'un ürettiği projeler: {EYALET}_{yyyyMMdd}[_n].json (ör. FL_20260924.json, FL_20260924_2.json)
+projects/[A-Z][A-Z]_[0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9].json
+projects/[A-Z][A-Z]_[0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]_*.json

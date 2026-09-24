@@ -54,7 +54,7 @@ Depo kökündeki `brand.json` kanalın renk paletini, varsayılan renk kategoril
 | `colors` anahtarı | Varsayılan | Görevi |
 |---|---|---|
 | `bg_dark` / `bg_light` | `#07111d` / `#102338` | Arka plan degradesinin kenarı ve merkezi |
-| `surface` | `#0e1c2e` | ABD'deki diğer eyaletlerin dolgusu; vurgu sırasında county'lerin soluklaştığı renk |
+| `surface` | `#0e1c2e` | ABD'deki diğer eyaletlerin dolgusu. Vurgu sırasında soluklaşan county'ler bu rengin parlaklığından daha karanlığa inmez. |
 | `line` | `#23405e` | Eyalet kenarları, enlem-boylam çizgileri, fiyat merdiveninin ızgara ve ayırıcı çizgileri |
 | `text` | `#f4ecdd` | Başlıklar, yer adları, büyük sayaçlar |
 | `muted` | `#a9b4c2` | Alt başlıklar, açıklama kutusu yazıları, eksen etiketleri, sayaç başlıkları |
@@ -119,7 +119,7 @@ Güncel ayar listesi, varsayılanlar ve sınırlar makine tarafından okunabilir
 | `title` | metin, en fazla 200 karakter | `""` | Büyük başlık. Boşsa eyalet adı büyük harfle yazılır. Uzun başlık kendiliğinden küçültülür. |
 | `subtitle` | metin | `""` | Başlığın altındaki satır |
 | `accent` | `#rrggbb` | `brand.json` → `colors.accent` | Neon sınır ve vurgu parlaması rengi |
-| `categories` | 2–7 öğe: `{key, label, color}`. `key` `^[a-z0-9_]{1,20}$` ve benzersiz, `label` 1–40 karakter, `color` `#rrggbb`. **Son öğenin anahtarı `none` olmalı.** | `brand.json` kategorileri (aşağıda) | Açıklama kutusu ve boyama renkleri. `none`, atanmamış county'lerin rengi ve etiketidir. |
+| `categories` | 2–7 öğe: `{key, label, color}`. `key` `^[a-z0-9_]{1,20}$` ve benzersiz, `label` 1–40 karakter, `color` `#rrggbb`. **Son öğenin anahtarı `none` olmalı.** | `brand.json` kategorileri (aşağıda) | Açıklama kutusu ve boyama renkleri. `none`, atanmamış county'lerin rengi ve etiketidir. Açıklama kutusunda yalnızca `assign` içinde kullanılan kategoriler (liste sırasıyla) ve en sonda `none` gösterilir. |
 | `assign` | `{ "<5 haneli FIPS>": "<kategori key>" }` | `{}` | County boyaması. FIPS seçili eyalete ait olmalı. Listede olmayan county'ler `none` sayılır. |
 | `focus` | 5 haneli FIPS ya da `null` | `null` | Sahnenin sonunda yakınlaşılacak county. `null` ise kamera eyalette kalır. |
 | `focus_name` | metin | `""` | Vurgu etiketi. Boşsa `<AD> <LSAD>` büyük harfle yazılır (ör. `CHARLOTTE COUNTY`). |
@@ -191,6 +191,17 @@ Ayarlar `state_map` ile aynı ad ve kurallara sahiptir (bkz. §5.1). Farklar şu
 | `title`, `subtitle` | Bu sahnede yok | |
 
 **Etiket yerleşimi:** Etiket ve bağlantı çizgisi, county'nin hangi tarafında daha çok boş alan (su ya da eyalet dışı) varsa o tarafa konur. Bunun için etiket bölgesinin eyaletle örtüşmesi iki taraf için hesaplanır ve az olan seçilir; eşitlikte sol seçilir. Örneğin Florida'da St. Lucie ve Miami-Dade'de etiket sağa (Atlantik), Lee ve Charlotte'ta sola (Meksika Körfezi) düşer. Seçim `engine/framing.py` içindeki `label_side` fonksiyonundadır.
+
+**Etiketin kadraja sığması** (`county_focus` ve `state_map`): Etiket bloğu (ad, alt yazı, istatistik) her zaman ekranın içinde, kenarlardan en az %3 boşlukla kalır ve vurgulanan county'nin üstüne binmez. Metin varsayılan yere sığmazsa sırayla şunlar denenir:
+
+1. Etiket county'ye doğru içeri kaydırılır.
+2. Etiket diğer tarafa alınır (kamera da ona göre aynalanır).
+3. İstatistik satırı en fazla %25 küçültülür.
+4. İstatistik iki satıra bölünür.
+
+Son çare olarak sığmayan satır küçültülür. Kısa metinlerde (ör. örnek projedeki Charlotte) etiket varsayılan yerinde kalır. Kural `scenes/maplib.py` içindeki `MapLayers._place_label` metodundadır.
+
+**Soluklaşma:** Vurgu sırasında diğer county'ler renk tonunu korur; doygunlukları %55, parlaklıkları %50 azalır. Kırmızı ve altın zemin rengine karışıp çamurlaşmaz.
 
 Zaman çizelgesi (5 sn temel süre):
 

@@ -8,7 +8,22 @@ from engine import brand, framing, geo
 from engine.params import Categories, Color, CountyAssign, CountySelect, Number, StateSelect, Text
 from engine.scene import cap_scale, ease, fit_text
 
-GLOW_SPECS = [(16, 0.05), (10, 0.10), (6, 0.22), (2.4, 1.0)]  # neon sınır: (çizgi kalınlığı, opaklık)
+# neon sınır: (çizgi kalınlığı, opaklık). Parlama katmanları turuncu vurgu rengi için 1,5 kat güçlü.
+GLOW_SPECS = [(16, 0.075), (10, 0.15), (6, 0.33), (2.4, 1.0)]
+# vurgu sırasında diğer county'lerin tam soluklaşmada kaybettiği doygunluk ve parlaklık oranı
+DIM_SAT, DIM_VAL = 0.55, 0.5
+# vurgu etiketi yerleşimi (ekran oranı): kenar boşluğu, county ile arasındaki en az boşluk,
+# istatistik satırının en fazla küçülebileceği oran
+LABEL_MARGIN, LABEL_GAP, STAT_MIN_SCALE = 0.03, 0.02, 0.75
+
+
+def split_two_lines(text):
+    """Metni kelime sınırından, iki satırın uzunlukları en yakın olacak şekilde ikiye böler."""
+    words = text.split()
+    if len(words) < 2:
+        return text
+    i = min(range(1, len(words)), key=lambda k: abs(len(" ".join(words[:k])) - len(" ".join(words[k:]))))
+    return " ".join(words[:i]) + "\n" + " ".join(words[i:])
 
 
 # ---------- ayarlar ----------
@@ -87,13 +102,21 @@ class MapGeometry:
         self.cam_state = framing.state_frame(np.vstack(self.state_rings), p["zoom"], p["shift_x"], p["shift_y"])
         self.focus_idx = next((i for i, c in enumerate(cs) if c.fips == p["focus"]), None)
         self.label_side = None
+        self.focus_zoom = p["focus_zoom"]
         if self.focus_idx is not None:
             self.focus_pts = np.vstack(cs[self.focus_idx].rings)
             self.focus_center = self.focus_pts.mean(0)
             if label_side == "auto":
                 label_side = framing.label_side(self.state_rings, self.focus_pts, self.cam_state[2], p["focus_zoom"])
-            self.label_side = label_side
-            self.cam_focus = framing.focus_frame(self.focus_pts, self.cam_state[2], p["focus_zoom"], label_side)
+            self.set_label_side(label_side)
+
+    def focus_camera(self, side):
+        return framing.focus_frame(self.focus_pts, self.cam_state[2], self.focus_zoom, side)
+
+    def set_label_side(self, side):
+        """Etiket tarafını ve ona göre vurgu kamerasını belirler (etiket sığmazsa MapLayers değiştirir)."""
+        self.label_side = side
+        self.cam_focus = self.focus_camera(side)
 
 
 class MapLayers:
@@ -143,29 +166,114 @@ class MapLayers:
                 for w, a in [(12, 0.08), (6, 0.2), (2.2, 1.0)]:
                     self.ch_glow.append((ax.plot(r[:, 0], r[:, 1], color=NEON, lw=w, alpha=0.0, zorder=8)[0], a))
             cx, cy = g.focus_center
-            fw = g.cam_focus[2]
-            if g.label_side == "right":
-                lab_x, ha = cx + 0.19 * fw, "left"
-                self.elbow = (lab_x - 0.01 * fw, cy + 0.06 * fw)
-            else:
-                lab_x, ha = cx - 0.19 * fw, "right"
-                self.elbow = (lab_x + 0.01 * fw, cy + 0.06 * fw)
-            lab_y = cy + 0.06 * fw
             self.leader = ax.plot([], [], color=C["text"], lw=1.6, alpha=0.0, zorder=9)[0]
             self.dot = ax.plot([cx], [cy], "o", color=C["text"], ms=9, alpha=0.0, zorder=9)[0]
-            self.t_name = ax.text(lab_x, lab_y + 0.004 * fw, p["focus_name"] or focus_title(g.counties[g.focus_idx]),
-                                  fontproperties=PLACE, fontsize=64 * PK, color=C["text"], ha=ha, va="bottom",
+            self.t_name = ax.text(0, 0, p["focus_name"] or focus_title(g.counties[g.focus_idx]),
+                                  fontproperties=PLACE, fontsize=64 * PK, color=C["text"], va="bottom",
                                   alpha=0, zorder=10)
             fit_text(fig, self.t_name, 0.30)
-            self.t_sub = ax.text(lab_x, lab_y - 0.004 * fw, p["focus_sub"], fontproperties=BAR, fontsize=24,
-                                 color=C["muted"], ha=ha, va="top", alpha=0, zorder=10)
+            self.t_sub = ax.text(0, 0, p["focus_sub"], fontproperties=BAR, fontsize=24,
+                                 color=C["muted"], va="top", alpha=0, zorder=10)
             key = g.c_key[g.focus_idx]
-            self.t_stat = ax.text(lab_x, lab_y - 0.034 * fw, p["focus_stat"], fontproperties=BARB, fontsize=26,
-                                  color=g.col[key] if key != "none" else NEON, ha=ha, va="top", alpha=0, zorder=10)
+            self.t_stat = ax.text(0, 0, p["focus_stat"], fontproperties=BARB, fontsize=26,
+                                  color=g.col[key] if key != "none" else NEON, va="top", alpha=0, zorder=10)
+            self._place_label(fig)
 
-        self.bgc = np.array(mcolors.to_rgb(C["surface"]))
+        self.base_hsv = mcolors.rgb_to_hsv(self.base_rgba[:, :3])
+        self.surface_v = mcolors.rgb_to_hsv(mcolors.to_rgb(C["surface"]))[2]
         self.edge = np.array([[*mcolors.to_rgba(C["bg_dark"])[:3], 1.0]] * len(g.c_owner))
         self.is_focus = g.c_owner == g.focus_idx if g.focus_idx is not None else np.zeros(len(g.c_owner), bool)
+
+    # ---------- vurgu etiketinin yerleşimi ----------
+    def _screen_x(self, side):
+        """Verilen tarafın vurgu kamerasında county merkezinin ve sol/sağ kenarının ekran x'i (0–1)."""
+        g = self.g
+        cam = g.focus_camera(side)
+        left = cam[0] - cam[2] / 2
+        xs = (g.focus_pts[:, 0] - left) / cam[2]
+        return (g.focus_center[0] - left) / cam[2], xs.min(), xs.max()
+
+    def _room(self, side):
+        """Etiket county'ye en fazla yaklaştırıldığında sığabileceği genişlik (ekran oranı)."""
+        _, xl, xr = self._screen_x(side)
+        if side == "left":
+            return xl - LABEL_GAP - LABEL_MARGIN
+        return 1 - LABEL_MARGIN - (xr + LABEL_GAP)
+
+    def _plan(self, sides, width):
+        """Etiket bloğunun sığdığı ilk taraf ve varsayılan konumdan içeri kayma miktarı; sığmazsa None."""
+        for side in sides:
+            c, xl, xr = self._screen_x(side)
+            if side == "left":
+                anchor = c - 0.19  # sağa hizalı blok [anchor - width, anchor]
+                if anchor - width >= LABEL_MARGIN:
+                    return side, 0.0
+                shifted = LABEL_MARGIN + width
+                if shifted <= xl - LABEL_GAP:
+                    return side, shifted - anchor
+            else:
+                anchor = c + 0.19  # sola hizalı blok [anchor, anchor + width]
+                if anchor + width <= 1 - LABEL_MARGIN:
+                    return side, 0.0
+                shifted = 1 - LABEL_MARGIN - width
+                if shifted >= xr + LABEL_GAP:
+                    return side, shifted - anchor
+        return None
+
+    def _place_label(self, fig):
+        """Etiketi ekran kenarlarından en az %3 içeride tutar. Sırayla dener: varsayılan yer, içeri kaydırma,
+        diğer taraf, istatistiği en fazla %25 küçültme, istatistiği iki satıra bölme; en son hepsini sığdırır."""
+        g = self.g
+        texts = [self.t_name, self.t_sub, self.t_stat]
+        r = fig.canvas.get_renderer()
+
+        def width(t):
+            return t.get_window_extent(renderer=r).width / fig.bbox.width if t.get_text() else 0.0
+
+        def block():
+            return max(width(t) for t in texts)
+
+        sides = [g.label_side, "right" if g.label_side == "left" else "left"]
+        room = max(self._room(s) for s in sides)
+        base = self.t_stat.get_fontsize()
+
+        def shrink_stat():
+            w = width(self.t_stat)
+            if w > room:
+                self.t_stat.set_fontsize(max(base * STAT_MIN_SCALE, self.t_stat.get_fontsize() * room / w * 0.99))
+
+        plan = self._plan(sides, block())
+        if plan is None and self.t_stat.get_text():
+            shrink_stat()
+            plan = self._plan(sides, block())
+        if plan is None and len(self.t_stat.get_text().split()) > 1:
+            self.t_stat.set_text(split_two_lines(self.t_stat.get_text()))
+            self.t_stat.set_fontsize(base)
+            plan = self._plan(sides, block())
+            if plan is None:
+                shrink_stat()
+                plan = self._plan(sides, block())
+        if plan is None:  # son çare: sığmayan satırları en geniş boşluğa göre küçült
+            side = max(sides, key=self._room)
+            for t in texts:
+                if width(t) > self._room(side):
+                    fit_text(fig, t, self._room(side))
+            plan = self._plan([side], block()) or (side, 0.0)
+
+        side, shift = plan
+        g.set_label_side(side)
+        cx, cy = g.focus_center
+        fw = g.cam_focus[2]
+        if side == "right":
+            lab_x, ha = cx + 0.19 * fw + shift * fw, "left"
+            self.elbow = (lab_x - 0.01 * fw, cy + 0.06 * fw)
+        else:
+            lab_x, ha = cx - 0.19 * fw + shift * fw, "right"
+            self.elbow = (lab_x + 0.01 * fw, cy + 0.06 * fw)
+        lab_y = cy + 0.06 * fw
+        for t, dy in ((self.t_name, 0.004), (self.t_sub, -0.004), (self.t_stat, -0.034)):
+            t.set_ha(ha)
+            t.set_position((lab_x, lab_y + dy * fw))
 
     # ---------- kare kare ayarlar ----------
     def set_camera(self, cam):
@@ -206,10 +314,16 @@ class MapLayers:
             ln.set_alpha(alpha)
 
     def set_counties(self, appear, focus_dim):
-        """appear: her poligonun görünürlüğü (0–1); focus_dim: vurgu dışındaki county'lerin zemine soluklaşma oranı."""
+        """appear: her poligonun görünürlüğü (0–1); focus_dim: vurgu dışındaki county'lerin soluklaşma oranı (0–1).
+        Soluklaşma renk tonunu korur: zemine karıştırmak yerine doygunluk ve parlaklık düşer (renk çamurlaşmaz)."""
         cols = self.base_rgba.copy()
-        k = np.where(self.is_focus, 0.0, 0.62 * focus_dim)[:, None]
-        cols[:, :3] = cols[:, :3] * (1 - k) + self.bgc * k
+        if focus_dim > 0:
+            d = np.where(self.is_focus, 0.0, focus_dim)
+            hsv = self.base_hsv.copy()
+            hsv[:, 1] *= 1 - DIM_SAT * d
+            # koyu renkler (ör. NOT ENOUGH DATA) zemin renginden daha karanlığa düşüp delik gibi görünmesin
+            hsv[:, 2] = np.maximum(hsv[:, 2] * (1 - DIM_VAL * d), np.minimum(hsv[:, 2], self.surface_v))
+            cols[:, :3] = mcolors.hsv_to_rgb(hsv)
         cols[:, 3] = appear * 0.95
         self.c_coll.set_facecolors(cols)
         ec = self.edge.copy()

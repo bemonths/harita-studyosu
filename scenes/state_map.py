@@ -20,6 +20,13 @@ PARAMS = [
 ]
 
 
+def legend_categories(p):
+    """Renk açıklamasındaki satırlar: assign içinde kullanılan kategoriler (liste sırasıyla) ve en sonda 'none'."""
+    used = set(p["assign"].values())
+    cats = p["categories"]
+    return [c for c in cats if c["key"] != "none" and c["key"] in used] + [c for c in cats if c["key"] == "none"]
+
+
 def setup(ctx):
     p, fig, F = ctx.p, ctx.fig, ctx.fonts
     C = brand.colors()
@@ -32,7 +39,7 @@ def setup(ctx):
                   fontsize=150 * cap_scale(fig, F["place"]), color=C["text"], alpha=0, va="bottom")
     fit_text(fig, T1, 0.34)
     T2 = fig.text(0.058, 0.545, p["subtitle"], fontproperties=F["label"], fontsize=26, color=C["muted"], alpha=0, va="top")
-    cats = p["categories"]
+    cats = legend_categories(p)
     legend_items = []
     ly = 0.30 + max(0, len(cats) - 5) * 0.045
     for i, c in enumerate(cats):

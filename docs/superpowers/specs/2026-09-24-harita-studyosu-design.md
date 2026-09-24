@@ -48,7 +48,7 @@ anim/
     static/              index.html, style.css, js/*.js
   projects/ornek_florida.json
   tests/
-  data/                  (git dışı) counties.json, fonts/, outlines/
+  data/                  (git dışı) counties.json, fonts/
   reference/             (git dışı) orijinal koddan alınan referans video ve kareler
   out/                   (git dışı) render çıktıları
 ```
@@ -81,29 +81,28 @@ Her tip arayüz için bir JSON tanımı (`schema()`) ve bir `validate(value, all
 |---|---|---|
 | `Text(multiline=False, auto=False)` | str. `auto=True` ise boş bırakılınca sahne yazıyı kendisi üretir | metin kutusu, boşsa gri "otomatik" ipucu |
 | `Color` | `#rrggbb` | renk seçici |
-| `Number(min, max, step)` | float | sayı kutusu |
+| `Number(lo, hi, step, integer, optional)` | float, `integer=True` ise int, `optional=True` ise `null` olabilir | sayı kutusu |
 | `Date` | `YYYY-MM-DD` | tarih seçici |
-| `State` | eyalet kısaltması (`FL`) | açılır liste, 48 eyalet |
-| `County(state_param, allow_none)` | county FIPS (5 hane) veya `null` | açılır liste, seçili eyaletin county'leri |
+| `StateSelect` | eyalet kısaltması (`FL`) | açılır liste, 48 eyalet |
+| `CountySelect(state_param, allow_none)` | county FIPS (5 hane) veya `null` | açılır liste, seçili eyaletin county'leri |
 | `Categories(min=2, max=7)` | `[{key, label, color}]`, son eleman sabit `none` | satır listesi: etiket + renk, ekle/sil (`none` silinemez) |
 | `CountyAssign(state_param, categories_param)` | `{fips: category_key}` | county boyama paneli + CSV/Excel içe aktarma |
 | `PriceTable` | `[{date, price}]`, en az 2 satır, tarihler artan, fiyatlar > 0 | düzenlenebilir tablo, satır ekle/sil |
-| `Money(optional)` | int veya `null` | sayı kutusu |
 
-Eyalet değişince `County` ve `CountyAssign` değerleri geçersiz kalır. Arayüz onay sorup bunları temizler, sunucu doğrulaması da yabancı FIPS'leri reddeder.
+Eyalet değişince `CountySelect` ve `CountyAssign` değerleri geçersiz kalır. Arayüz onay sorup bunları temizler, sunucu doğrulaması da yabancı FIPS'leri reddeder.
 
 ## 5. Coğrafya (`geo.py`, `assets.py`)
 
 - Kaynaklar eskisiyle aynı: plotly `geojson-counties-fips.json` (Sayım Bürosu kaynaklı) ve Google Fonts'tan Bebas Neue ile Barlow (Regular, SemiBold, Bold). Dosyalar `data/` altına indirilir.
 - Eyalet tablosu `geo.py` içinde sabit durur: FIPS, kısaltma ve ad. 48 bitişik eyalet destekleniyor. DC arka plan haritasında çizilir ama seçilemez.
 - County kimliği FIPS'tir (feature `id`, 5 hane). Görünen ad `NAME` alanıdır. Aynı eyalette aynı adı taşıyan birden fazla kayıt varsa (Virginia'daki bağımsız şehirler gibi) ada `LSAD` eklenir, örneğin "Richmond city".
-- Arka plan sınırları: 48 eyalet county'lerden birleştirilip `simplify(0.01)` ile sadeleştirilir ve `data/outlines/_all_simplified.json` olarak saklanır. Seçili eyaletin sınırı sadeleştirilmeden bir kez hesaplanır ve `data/outlines/<FIPS>.json` dosyasına önbelleklenir. Eski kod Florida için tam bu mantığı uyguluyordu.
+- Arka plan sınırları: 48 eyalet ve DC county'lerden birleştirilir. Her birinin hem tam hem `simplify(0.01)` ile sadeleştirilmiş hali süreç içinde bir kez hesaplanıp bellekte tutulur (ölçüm: 0,4 sn, diske önbellek gerekmez). Arka planda seçili eyalet tam çözünürlükle, diğerleri sadeleştirilmiş çizilir. Eski kod Florida için tam bu mantığı uyguluyordu.
 - Projeksiyon mevcut `albers()` fonksiyonu, parametreler aynı.
 - Arayüz haritası için `geo.county_svg(state)` projekte edilmiş ve hafif sadeleştirilmiş SVG path'leri döndürür. Her kayıtta fips, ad ve path bulunur, y ekseni SVG için ters çevrilir.
 - **County eşleme** (CSV/Excel içe aktarma) şu sırayla dener:
   1. 5 haneli FIPS ya da 3 haneli county kodu.
-  2. Normalize edilmiş ad: küçük harf; "county", "parish", "city" ekleri atılır; "saint"/"st." ve "sainte"/"ste." eşitlenir; noktalama ve boşluk atılır.
-  3. "ad + LSAD" biçimi.
+  2. "ad + LSAD" biçiminde tam eşleşme ("Richmond city" gibi; büyük/küçük harf duyarsız).
+  3. Normalize edilmiş ad: küçük harf; "county", "parish", "city", "borough" ekleri atılır; "saint"/"st." ve "sainte"/"ste." eşitlenir; noktalama ve boşluk atılır.
 
   Eşleşmeyen ve birden fazla county'ye uyan satırlar ayrı listelerde döner.
 - Kategori sütunu kategori `key` değeriyle ya da etiketle (büyük/küçük harf duyarsız) eşleşir.

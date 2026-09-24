@@ -1,0 +1,75 @@
+{
+  "version": 1,
+  "name": "ornek_florida",
+  "transition": 0.6,
+  "output": {"separate": true, "combined": true, "transparent": false},
+  "scenes": [
+    {
+      "type": "state_map",
+      "enabled": true,
+      "params": {
+        "state": "FL",
+        "title": "FLORIDA",
+        "subtitle": "10 COUNTIES  ·  AUGUST 2026 DATA",
+        "accent": "#3ee6ff",
+        "categories": [
+          {"key": "buyers", "label": "BUYERS PULLED BACK", "color": "#ff5a4f"},
+          {"key": "price", "label": "PRICES BREAKING", "color": "#ffb020"},
+          {"key": "weak", "label": "WEAKENING", "color": "#e6d45a"},
+          {"key": "stable", "label": "HOLDING STEADY", "color": "#3b6694"},
+          {"key": "none", "label": "NOT ENOUGH DATA", "color": "#16233a"}
+        ],
+        "assign": {
+          "12001": "buyers", "12005": "weak", "12009": "stable", "12011": "stable", "12015": "price",
+          "12017": "stable", "12019": "buyers", "12021": "price", "12031": "stable", "12033": "stable",
+          "12035": "stable", "12053": "stable", "12055": "buyers", "12057": "stable", "12061": "stable",
+          "12069": "stable", "12071": "price", "12073": "stable", "12081": "price", "12083": "stable",
+          "12085": "stable", "12086": "buyers", "12087": "weak", "12089": "stable", "12091": "buyers",
+          "12095": "stable", "12097": "buyers", "12099": "stable", "12101": "buyers", "12103": "stable",
+          "12105": "buyers", "12109": "stable", "12111": "buyers", "12113": "buyers", "12115": "price",
+          "12117": "stable", "12119": "stable", "12127": "stable", "12131": "weak"
+        },
+        "focus": "12015",
+        "focus_name": "CHARLOTTE COUNTY",
+        "focus_sub": "Punta Gorda  ·  Port Charlotte",
+        "focus_stat": "~900 LISTINGS PULLED IN 12 MONTHS",
+        "focus_zoom": 0.55,
+        "zoom": 0.822673668267268,
+        "shift_x": -0.009999999999999926,
+        "shift_y": 0.05222222222222225,
+        "duration": 13.0
+      }
+    },
+    {
+      "type": "price_ladder",
+      "enabled": true,
+      "params": {
+        "kicker": "LEE COUNTY  ·  FORT MYERS",
+        "title": "ONE HOUSE. NINE PRICE CUTS.",
+        "subtitle": "4 bedrooms  ·  built 2000  ·  listed August 2024",
+        "history": [
+          {"date": "2024-08-15", "price": 580000},
+          {"date": "2024-09-11", "price": 574999},
+          {"date": "2024-12-19", "price": 565000},
+          {"date": "2025-05-13", "price": 540000},
+          {"date": "2025-10-15", "price": 510000},
+          {"date": "2026-02-11", "price": 490000},
+          {"date": "2026-03-09", "price": 489000},
+          {"date": "2026-05-04", "price": 475000},
+          {"date": "2026-06-04", "price": 430000},
+          {"date": "2026-06-30", "price": 410000}
+        ],
+        "today": "2026-09-23",
+        "paid": 310000,
+        "paid_year": 2017,
+        "paid_text": "",
+        "diff_text": "",
+        "label_price": "ASKING PRICE",
+        "label_days": "DAYS FOR SALE",
+        "label_cuts": "PRICE CUTS",
+        "accent": "#3ee6ff",
+        "duration": 11.5
+      }
+    }
+  ]
+}

@@ -1,2 +1,4 @@
 """Sahne kaydı: sahne id -> Scene."""
-REGISTRY = {}
+from scenes import state_map
+
+REGISTRY = {s.id: s for s in (state_map.SCENE,)}

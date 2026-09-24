@@ -49,6 +49,8 @@ py -3.12 -m venv .venv
 
 ## Komut satırı
 
+Otomasyon, HTTP API ve proje dosyası şeması için ayrıntılı rehber: [docs/ENTEGRASYON.md](docs/ENTEGRASYON.md).
+
 ```powershell
 .\.venv\Scripts\python -m engine.cli render projects\ornek_florida.json
 .\.venv\Scripts\python -m engine.cli render projects\ornek_florida.json --transparent --no-separate

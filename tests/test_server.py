@@ -106,3 +106,11 @@ def test_render_job_end_to_end(client):
     assert j["state"] == "done", j
     assert len(j["outputs"]) == 1 and j["outputs"][0].endswith("01_price_ladder.mp4")
     assert client.get(f"/api/outputs/{j['outputs'][0]}").status_code == 200
+
+
+def test_static_assets(client):
+    html = client.get("/").text
+    assert '<script type="module" src="/static/js/main.js">' in html
+    for f in ("style.css", "js/main.js", "js/api.js", "js/state.js", "js/form.js", "js/preview.js",
+              "js/countymap.js", "js/render.js", "js/pricetable.js", "js/dom.js"):
+        assert client.get(f"/static/{f}").status_code == 200, f

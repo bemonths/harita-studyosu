@@ -1,3 +1,57 @@
 <!doctype html>
-<html lang="tr"><head><meta charset="utf-8"><title>Harita Stüdyosu</title></head>
-<body><h1>Harita Stüdyosu</h1><p>Arayüz hazırlanıyor.</p></body></html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Harita Stüdyosu</title>
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">Harita Stüdyosu</span>
+  <span id="project-name" class="muted"></span>
+  <span id="dirty" class="dirty" hidden>● kaydedilmedi</span>
+  <span class="spacer"></span>
+  <button id="btn-new">Yeni</button>
+  <select id="open-select" aria-label="Proje aç"></select>
+  <button id="btn-save">Kaydet</button>
+</header>
+<main class="layout">
+  <aside>
+    <section class="panel">
+      <h2>Sahneler</h2>
+      <ul id="scene-list" class="scene-list"></ul>
+      <div class="add-scene">
+        <select id="add-scene-type" aria-label="Eklenecek sahne tipi"></select>
+        <button id="btn-add-scene">Sahne ekle</button>
+      </div>
+    </section>
+    <section class="panel">
+      <h2 id="form-title">Ayarlar</h2>
+      <div id="form"></div>
+    </section>
+  </aside>
+  <section>
+    <div id="preview-wrap" class="preview-wrap">
+      <img id="preview-img" alt="Önizleme karesi">
+      <div id="preview-status" class="overlay"></div>
+    </div>
+    <div class="timebar">
+      <span id="t-label">0,0 sn</span>
+      <input type="range" id="t-slider" min="0" max="13" step="0.1" value="0" aria-label="Önizleme zamanı">
+      <span id="t-max"></span>
+    </div>
+    <section id="county-panel" class="panel" hidden>
+      <h2>County boyama</h2>
+      <div id="county-map"></div>
+    </section>
+    <section class="panel">
+      <h2>Render</h2>
+      <div id="render"></div>
+    </section>
+  </section>
+</main>
+<noscript>Harita Stüdyosu için JavaScript gerekli.</noscript>
+<script type="module" src="/static/js/main.js"></script>
+</body>
+</html>

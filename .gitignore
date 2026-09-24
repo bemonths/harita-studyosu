@@ -4,7 +4,3 @@ __pycache__/
 data/
 out/
 reference/
-# eski yerleşim (Görev 15'teki temizliğe kadar)
-fonts/
-counties.json
-state_outlines.json

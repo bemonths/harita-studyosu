@@ -2,7 +2,7 @@
 
 Bu belge, Harita Stüdyosu'nu bir iş akışına ya da başka bir yapay zeka ajanına bağlayacak kişiler için yazıldı. Aracın ne ürettiğini, nasıl sürüleceğini, girdilerin biçimini, çıktıları ve sınırları anlatır. Son kullanıcı kılavuzu [README.md](../README.md) dosyasındadır.
 
-- **Sürüm:** v1 (2026-09-24). Proje dosyası şema sürümü: `1`.
+- **Sürüm:** v1.1 (2026-09-24): marka dosyası (§3.1), `county_focus` sahnesi (§5.3), dosyadan proje yükleme (§4, §7). Proje dosyası şema sürümü: `1`.
 - **Depo:** https://github.com/bemonths/harita-studyosu
 
 ## 1. Ne üretir?
@@ -79,6 +79,8 @@ Yazı tipi yolları Google Fonts deposunun `ofl/` klasörüne göredir ve `asset
 4. `output` olaylarından dosya yollarını alın ve kurgu ya da yayın adımına verin.
 
 Doğrulama render'dan önce otomatik yapılır. Hatalı bir alan varsa render başlamaz ve hangi sahnenin hangi alanının neden hatalı olduğu bildirilir.
+
+**Projeyi arayüze vermek:** Proje JSON'u doğrudan `projects/<name>.json` olarak yazılabilir. Dosya adı, `name` alanıyla aynı olmalı. Arayüzdeki "Proje aç…" listesi her açılışta klasörü yeniden okur, bu yüzden yeni dosya sayfayı yenilemeden görünür. Başka bir yerden gelen dosya için arayüzdeki "Dosyadan yükle…" düğmesi ya da `POST /api/projects/import` ucu kullanılır (§7). Bu yollar dosyayı kaydetmeden önce doğrular.
 
 ## 5. Proje JSON şeması (sürüm 1)
 
@@ -272,6 +274,7 @@ Sunucu yalnızca `127.0.0.1` adresini dinler ve kimlik doğrulaması yoktur. **A
 | `GET /api/projects/_new` | | Varsayılan ayarlı iki sahneli yeni proje |
 | `GET /api/projects/{name}` | | `{"project", "errors"}` |
 | `PUT /api/projects/{name}` | proje JSON'u | Kaydeder: `{"saved", "errors"}` |
+| `POST /api/projects/import?overwrite=false` | proje JSON'u | Doğrular ve `projects/<name>.json` olarak kaydeder: `{"saved", "project"}`. Dosya olduğu gibi yazılır; eksik alanlar dondurulmaz. Hatalı projede 422 (`detail.errors`), yapısal hatada 400. Aynı ad varsa 409 (`detail.name`); `overwrite=true` ile üzerine yazar. |
 | `POST /api/validate` | proje JSON'u | `{"errors": [...]}` |
 | `POST /api/preview` | `{"type", "params", "t", "transparent"}` | `image/png`, 960x540. Hatalı ayarda 422. |
 | `POST /api/import-assignments` | `{"state", "categories", "filename", "content_b64"}` | `{"assign", "unmatched", "ambiguous"}` (bkz. §8) |

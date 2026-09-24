@@ -114,3 +114,43 @@ def test_static_assets(client):
     for f in ("style.css", "js/main.js", "js/api.js", "js/state.js", "js/form.js", "js/preview.js",
               "js/countymap.js", "js/render.js", "js/pricetable.js", "js/dom.js"):
         assert client.get(f"/static/{f}").status_code == 200, f
+
+
+def test_import_project_saves_and_conflicts(client):
+    p = new(client)
+    p["name"] = "disaridan"
+    r = client.post("/api/projects/import", json=p)
+    assert r.status_code == 200 and r.json()["saved"] == "disaridan"
+    assert r.json()["project"]["scenes"][0]["type"] == "state_map"
+    assert "disaridan" in client.get("/api/projects").json()["projects"]
+    again = client.post("/api/projects/import", json=p)
+    assert again.status_code == 409 and again.json()["detail"]["name"] == "disaridan"
+    assert client.post("/api/projects/import?overwrite=true", json=p).status_code == 200
+
+
+def test_import_project_rejects_invalid(client):
+    p = new(client)
+    p["name"] = "bozuk"
+    p["scenes"][0]["params"]["accent"] = "x"
+    r = client.post("/api/projects/import", json=p)
+    assert r.status_code == 422 and r.json()["detail"]["errors"][0]["param"] == "accent"
+    assert "bozuk" not in client.get("/api/projects").json()["projects"]
+    assert client.post("/api/projects/import", json={"version": 9}).status_code == 400
+
+
+def test_import_keeps_file_as_given(client, tmp_path):
+    import json
+
+    p = {"version": 1, "name": "kisa", "scenes": [{"type": "county_focus", "params": {"state": "FL", "focus": "12015"}}]}
+    r = client.post("/api/projects/import", json=p)
+    assert r.status_code == 200
+    saved = json.loads((tmp_path / "projects" / "kisa.json").read_text(encoding="utf-8"))
+    assert saved == p  # marka varsayılanları dosyaya dondurulmaz
+    assert r.json()["project"]["scenes"][0]["params"]["categories"][-1]["key"] == "none"
+
+
+def test_project_list_sees_external_files(client, tmp_path):
+    (tmp_path / "projects").mkdir(exist_ok=True)
+    assert client.get("/api/projects").json()["projects"] == []
+    (tmp_path / "projects" / "fredpull_fl.json").write_text("{}", encoding="utf-8")
+    assert client.get("/api/projects").json()["projects"] == ["fredpull_fl"]

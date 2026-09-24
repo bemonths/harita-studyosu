@@ -2,7 +2,7 @@
 import { api } from "./api.js";
 import { h } from "./dom.js";
 import { schedulePreview, syncSlider } from "./preview.js";
-import { emit, store, touch } from "./state.js";
+import { describeError, emit, store, touch } from "./state.js";
 
 let jobId = null, root = null;
 const $ = id => root.querySelector("#" + id);
@@ -50,13 +50,6 @@ export function renderRenderPanel(el) {
   if (jobId) { $("btn-render").disabled = true; $("btn-cancel").hidden = false; }
 }
 
-function describe(e) {
-  const where = e.scene == null ? "Proje" : `${e.scene + 1}. sahne`;
-  const sc = e.scene == null ? null : store.project.scenes[e.scene];
-  const label = sc ? (store.schemas[sc.type].params.find(p => p.name === e.param) || {}).label || e.param : e.param;
-  return `• ${where}${label ? " · " + label : ""}: ${e.message}`;
-}
-
 async function start() {
   $("render-errors").textContent = "";
   try {
@@ -64,7 +57,7 @@ async function start() {
     store.errors = errors;
     emit("errors");
     if (errors.length) {
-      $("render-errors").textContent = "Render başlamadı. Önce şu hataları düzeltin:\n" + errors.map(describe).join("\n");
+      $("render-errors").textContent = "Render başlamadı. Önce şu hataları düzeltin:\n" + errors.map(e => describeError(e)).join("\n");
       return;
     }
     jobId = (await api.render(store.project)).job_id;

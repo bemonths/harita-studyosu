@@ -42,7 +42,7 @@ py -3.12 -m venv .venv
 - **Vurgu:** "Vurgulanan county" seçilirse kamera sahnenin sonunda o county'ye yaklaşır ve adını, alt yazısını ve istatistiğini gösterir. Seçilmezse kamera eyalette kalır.
 - **Kamera:** Otomatik kadraj beğenilmezse "Kamera" bölümündeki yakınlaştırma ve kaydırma ayarlarıyla düzeltin.
 - **Render:** Çıktı seçeneklerini işaretleyip "Render al"a basın. Dosyalar `out\<proje adı>\<tarih-saat>\` klasörüne yazılır; "Klasörü aç" ile açılır.
-- **Projeler:** "Kaydet" ayarları `projects\<ad>.json` dosyasına yazar. "Proje aç…" listesinden geri açılır. Hazır gelen `ornek_florida` projesi örnek Florida videosunu üretir.
+- **Projeler:** "Kaydet" ayarları `projects\<ad>.json` dosyasına yazar. "Proje aç…" listesinden geri açılır; liste her açılışta yeniden okunduğu için klasöre dışarıdan konan dosyalar da görünür. "Dosyadan yükle…" başka bir yerdeki proje JSON dosyasını doğrular, `projects\` altına kaydeder ve açar; aynı adda proje varsa üzerine yazmadan önce sorar. Hazır gelen `ornek_florida` projesi örnek Florida videosunu üretir.
 
 ## Marka (renkler ve yazı tipleri)
 

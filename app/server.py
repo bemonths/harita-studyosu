@@ -72,6 +72,23 @@ def new_project():
     return proj.new_project()
 
 
+@app.post("/api/projects/import")
+def import_project(project: dict = Body(...), overwrite: bool = False):
+    """Dışarıdan gelen proje JSON'unu doğrular ve projects/<name>.json olarak kaydeder.
+    Dosya olduğu gibi kaydedilir (eksik alanlar dondurulmaz, marka varsayılanları geçerli kalır)."""
+    try:
+        clean, errors = proj.validate(project)
+    except proj.ProjectError as e:
+        fail(400, str(e))
+    if errors:
+        fail(422, "Proje dosyasında hatalar var.", errors=errors)
+    path = proj.path_for(clean["name"])
+    if os.path.exists(path) and not overwrite:
+        fail(409, f"\"{clean['name']}\" adında bir proje zaten var.", name=clean["name"])
+    proj.save(project, path)
+    return {"saved": clean["name"], "project": clean}
+
+
 @app.get("/api/projects/{name}")
 def load_project(name: str):
     try:

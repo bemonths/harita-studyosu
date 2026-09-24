@@ -33,6 +33,8 @@ export const api = {
   newProject: () => request("GET", "/api/projects/_new"),
   loadProject: name => request("GET", `/api/projects/${enc(name)}`),
   saveProject: (name, project) => request("PUT", `/api/projects/${enc(name)}`, project),
+  importProject: (project, overwrite = false) =>
+    request("POST", `/api/projects/import?overwrite=${overwrite ? "true" : "false"}`, project),
   validate: project => request("POST", "/api/validate", project),
   importAssignments: body => request("POST", "/api/import-assignments", body),
   render: project => request("POST", "/api/render", { project }),

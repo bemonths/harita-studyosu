@@ -24,6 +24,14 @@ export function setParam(name, value, reason = "param") {
 export function touch(reason) { store.dirty = true; emit(reason); }
 export function selectScene(i) { store.selected = i; emit("select"); }
 export function sceneErrors(i) { return store.errors.filter(e => e.scene === i); }
+// Doğrulama hatasını okunur bir satıra çevirir: "• 2. sahne · Vurgulanan county: ..."
+export function describeError(e, project = store.project) {
+  const where = e.scene == null ? "Proje" : `${e.scene + 1}. sahne`;
+  const sc = e.scene == null ? null : project?.scenes?.[e.scene];
+  const sch = sc && store.schemas[sc.type];
+  const label = sch ? (sch.params.find(p => p.name === e.param) || {}).label || e.param : e.param;
+  return `• ${where}${label ? " · " + label : ""}: ${e.message}`;
+}
 export async function geoFor(abbr) {
   if (!store.geo[abbr]) store.geo[abbr] = await api.geo(abbr);
   return store.geo[abbr];

@@ -5,7 +5,7 @@ import { assignText, renderForm, showErrors } from "./form.js";
 import { renderCountyPanel } from "./countymap.js";
 import { initPreview, schedulePreview, syncSlider } from "./preview.js";
 import { renderRenderPanel } from "./render.js";
-import { currentScene, defaultsFor, emit, on, sceneErrors, selectScene, setProject, store, touch } from "./state.js";
+import { currentScene, defaultsFor, describeError, emit, on, sceneErrors, selectScene, setProject, store, touch } from "./state.js";
 
 const $ = id => document.getElementById(id);
 let validateTimer = null;
@@ -72,9 +72,15 @@ function validateSoon() {
   }, 600);
 }
 
+let listedProjects = null;
+
+// Proje listesini sunucudan yeniden okur; projects/ klasörüne dışarıdan yazılan dosyalar da görünür.
+// Liste değişmediyse seçim kutusuna dokunmaz (açık kutu kapanmasın).
 async function refreshProjectList() {
-  const sel = $("open-select");
   const { projects } = await api.projects();
+  if (listedProjects && projects.join("\n") === listedProjects.join("\n")) return projects;
+  listedProjects = projects;
+  const sel = $("open-select");
   sel.innerHTML = "";
   sel.add(new Option("Proje aç…", ""));
   for (const n of projects) sel.add(new Option(n, n));
@@ -149,6 +155,46 @@ on(async reason => {
 $("btn-new").addEventListener("click", async () => {
   if (!confirmDiscard()) return;
   try { setProject(await api.newProject()); } catch (e) { alert(e.message); }
+});
+
+for (const ev of ["mouseenter", "focus"]) {
+  $("open-select").addEventListener(ev, () => refreshProjectList().catch(() => {}));
+}
+window.addEventListener("focus", () => refreshProjectList().catch(() => {}));
+
+$("btn-import").addEventListener("click", () => {
+  if (confirmDiscard()) $("import-file").click();
+});
+
+$("import-file").addEventListener("change", async e => {
+  const file = e.target.files[0];
+  e.target.value = "";
+  if (!file) return;
+  let data;
+  try {
+    data = JSON.parse(await file.text());
+  } catch {
+    alert(`"${file.name}" geçerli bir JSON dosyası değil.`);
+    return;
+  }
+  try {
+    let res;
+    try {
+      res = await api.importProject(data, false);
+    } catch (err) {
+      if (err.status !== 409) throw err;
+      if (!confirm(`"${err.data.detail.name}" adında bir proje zaten var. Üzerine yazılsın mı?`)) return;
+      res = await api.importProject(data, true);
+    }
+    await refreshProjectList();
+    setProject(res.project);
+  } catch (err) {
+    if (err.status === 422 && Array.isArray(err.data?.detail?.errors)) {
+      alert(`"${file.name}" yüklenemedi. Dosyadaki hatalar:\n` + err.data.detail.errors.map(x => describeError(x, data)).join("\n"));
+    } else {
+      alert(`"${file.name}" yüklenemedi: ${err.message}`);
+    }
+  }
 });
 
 $("open-select").addEventListener("change", async e => {

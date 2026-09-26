@@ -10,6 +10,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from PIL import Image
 
+from matplotlib.artist import Artist
 from matplotlib.colors import to_rgb
 
 from engine import assets, brand
@@ -34,6 +35,20 @@ def background(w, h, center):
     return np.dstack([bg0 * (1 - g) + bg1 * g, np.ones((h, w))])
 
 
+class Backdrop(Artist):
+    """Hazır arka plan (uint8 RGBA, satır 0 üstte): her karede Agg tamponuna doğrudan kopyalanır, ardından sahnenin
+    parçaları üstüne çizilir. Eskiden figimage kullanılıyordu; matplotlib görüntüyü her karede float'a çevirip yeniden
+    örnekliyordu (kare süresinin ~%80'i, paralel render'da bellek yolunu tıkıyordu). Sonuç piksel piksel aynı."""
+
+    def __init__(self, rgba):
+        super().__init__()
+        self.rgba = rgba
+        self.set_zorder(-10)
+
+    def draw(self, renderer):
+        np.asarray(renderer.buffer_rgba())[...] = self.rgba
+
+
 class Frames:
     """Bir sahnenin kurulmuş figürü; draw(t) istenen anın RGBA karesini verir."""
 
@@ -44,7 +59,8 @@ class Frames:
         self.fig.patch.set_alpha(0)
         self.w, self.h = int(round(W_IN * dpi)), int(round(H_IN * dpi))
         if not transparent:
-            self.fig.figimage(background(self.w, self.h, scene.bg_center), 0, 0, zorder=-10)
+            # figimage'ın çevirdiği gibi: 0–1 → bayt, kesme ile
+            self.fig.add_artist(Backdrop((background(self.w, self.h, scene.bg_center) * 255).astype(np.uint8)))
         self.update = scene.setup(SceneContext(self.fig, params, transparent, assets.fonts(), dpi))
 
     @property
@@ -77,21 +93,24 @@ def still_png(scene, params, t, transparent=False, dpi=50):
         fr.close()
 
 
-def encoder_args(transparent):
+def encoder_args(transparent, threads=None):
+    """threads: kodlayıcı iş parçacığı sınırı (paralel render'da); None ise ffmpeg'in varsayılanı (bütün çekirdekler)."""
+    extra = ["-threads", str(threads)] if threads else []
     if transparent:
-        return ["-c:v", "prores_ks", "-profile:v", "4444", "-pix_fmt", "yuva444p10le"]
-    return ["-c:v", "libx264", "-preset", "medium", "-crf", "17", "-pix_fmt", "yuv420p"]
+        return ["-c:v", "prores_ks", "-profile:v", "4444", "-pix_fmt", "yuva444p10le", *extra]
+    return ["-c:v", "libx264", "-preset", "medium", "-crf", "17", "-pix_fmt", "yuv420p", *extra]
 
 
 def video_ext(transparent):
     return ".mov" if transparent else ".mp4"
 
 
-def render_video(scene, params, out_path, transparent=False, on_progress=None):
+def render_video(scene, params, out_path, transparent=False, on_progress=None, threads=None):
     fr = Frames(scene, params, transparent, dpi=100)
     n = fr.n_frames
     proc = subprocess.Popen([ffmpeg_exe(), "-y", "-loglevel", "error", "-f", "rawvideo", "-pix_fmt", "rgba",
-                             "-s", f"{fr.w}x{fr.h}", "-r", str(FPS), "-i", "-", *encoder_args(transparent), out_path],
+                             "-s", f"{fr.w}x{fr.h}", "-r", str(FPS), "-i", "-", *encoder_args(transparent, threads),
+                             out_path],
                             stdin=subprocess.PIPE, stderr=subprocess.PIPE)
     try:
         for i in range(n):

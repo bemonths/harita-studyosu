@@ -2,7 +2,7 @@
 
 Bu belge, Harita Stüdyosu'nu bir iş akışına ya da başka bir yapay zeka ajanına bağlayacak kişiler için yazıldı. Aracın ne ürettiğini, nasıl sürüleceğini, girdilerin biçimini, çıktıları ve sınırları anlatır. Son kullanıcı kılavuzu [README.md](../README.md) dosyasındadır.
 
-- **Sürüm:** v1.3 (2026-09-26): sekiz grafik ve vaat sahnesi (`question_board`, `county_quiz`, `house_bars`, `line_trend`, `bar_list`, `ring`, `thermometer`, `house_grid`; §5.5–5.13), yeni ayar tipleri `Choice` ve `ValueTable` (§10), marka rengi `neutral` (§3.1), örnek proje `projects/ornek_grafikler.json`. v1.2 (2026-09-24): metinlerde `$` işareti düz yazılır (§5), vurgusuz `state_map`'te yavaş yakınlaşma (§5.1), ortalı `county_focus` açılışı ve yeni etiket yerleşimi (§5.3). v1.1: marka dosyası (§3.1), `county_focus` sahnesi (§5.3), dosyadan proje yükleme (§4, §7). Proje dosyası şema sürümü: `1`.
+- **Sürüm:** v1.3 (2026-09-26): paralel render ve hızlı arka plan (§6, render ~5–15 kat hızlı), sekiz grafik ve vaat sahnesi (`question_board`, `county_quiz`, `house_bars`, `line_trend`, `bar_list`, `ring`, `thermometer`, `house_grid`; §5.5–5.13), yeni ayar tipleri `Choice` ve `ValueTable` (§10), marka rengi `neutral` (§3.1), örnek proje `projects/ornek_grafikler.json`. v1.2 (2026-09-24): metinlerde `$` işareti düz yazılır (§5), vurgusuz `state_map`'te yavaş yakınlaşma (§5.1), ortalı `county_focus` açılışı ve yeni etiket yerleşimi (§5.3). v1.1: marka dosyası (§3.1), `county_focus` sahnesi (§5.3), dosyadan proje yükleme (§4, §7). Proje dosyası şema sürümü: `1`.
 - **Depo:** https://github.com/bemonths/harita-studyosu
 
 ## 1. Ne üretir?
@@ -397,7 +397,7 @@ Eşik etiketleri çizgilerin sağında ve her zaman kadrajın içindedir (sığm
 ## 6. Komut satırı
 
 ```powershell
-.\.venv\Scripts\python -m engine.cli render PROJE.json [--out KLASOR] [--transparent | --opaque] [--no-combined] [--no-separate] [--progress-json]
+.\.venv\Scripts\python -m engine.cli render PROJE.json [--out KLASOR] [--transparent | --opaque] [--no-combined] [--no-separate] [--progress-json] [--workers N]
 .\.venv\Scripts\python -m engine.cli still  PROJE.json --scene 0 --t 8.6 --out kare.png [--dpi 100] [--transparent]
 ```
 
@@ -405,6 +405,7 @@ Eşik etiketleri çizgilerin sağında ve her zaman kadrajın içindedir (sığm
 - `--out` verilmezse çıktılar `out/<name>/<YYYYMMDD-HHMMSS>/` klasörüne yazılır.
 - `--transparent`, `--opaque`, `--no-combined` ve `--no-separate` proje dosyasındaki `output` ayarlarını bu çağrı için geçersiz kılar.
 - `still`, tek bir PNG kare üretir. `--dpi 100` 1920x1080, `--dpi 50` 960x540 verir. Küçük önizlemeler için kullanışlıdır.
+- **Paralel render** (`--workers`, v1.3): sahneler aynı anda ayrı süreçlerde çizilir (matplotlib tek iş parçacıklıdır, bir sahne bir çekirdeği doldurur). Varsayılan `0` otomatiktir: mantıksal işlemci sayısının yarısı, en fazla sahne sayısı (16 çekirdek / 32 iş parçacıklı bir işlemcide 16 süreç). `1` eski sıralı davranıştır. En uzun sahneler önce başlar; paralel kipte her sahnenin ffmpeg'i 2 iş parçacığıyla sınırlanır. Birleştirme adımı her zaman tek ffmpeg sürecidir. Bir sahne hata verirse süren diğer sahneler durdurulur ve `error` olayı yazılır. Python'dan `run_render(..., workers=N)`; varsayılanı `1`.
 
 **Çıkış kodları:** `0` başarılı, `1` doğrulama/veri/render hatası, `2` hatalı komut satırı argümanı.
 
@@ -428,15 +429,25 @@ Eşik etiketleri çizgilerin sağında ve her zaman kadrajın içindedir (sığm
 {"event": "error", "message": "Projede hatalı ayarlar var: ..."}
 ```
 
-`output` yolları mutlaktır. Başarılı çalıştırma `done` ile biter; başarısız çalıştırma `error` olayı yazar ve 1 koduyla çıkar. Genel ilerleme `(scene + frame/total) / scenes` formülüyle hesaplanabilir.
+`output` yolları mutlaktır. Başarılı çalıştırma `done` ile biter; başarısız çalıştırma `error` olayı yazar ve 1 koduyla çıkar. Sıralı render'da genel ilerleme `(scene + frame/total) / scenes` formülüyle hesaplanabilir. Paralel render'da sahneler iç içe ilerlediği için `progress` olayında ek alanlar vardır; genel ilerleme için bunlar kullanılır:
 
-**Süre:** Render süresi işlemciye bağlıdır. Geliştirme bilgisayarında ölçülen değerler:
+```json
+{"event": "progress", "scene": 4, "scenes": 31, "frame": 120, "total": 195, "overall": 0.4172, "finished": 9}
+```
 
-- 24 sn'lik örnek videonun opak render'ı (iki sahne + birleştirme): yaklaşık 2 dakika (117 sn).
-- Aynı projenin şeffaf render'ı (yalnızca birleşik): yaklaşık 45 sn. Degrade arka plan çizilmediği için daha hızlı.
-- Dosya boyutları: `01_state_map.mp4` 2,5 MB, `02_price_ladder.mp4` 0,7 MB, `birlesik.mp4` 3,3 MB, şeffaf `birlesik.mov` 8,4 MB.
+`overall` bütün sahnelerin toplam kare oranı (0–1, artarak gider), `finished` biten sahne sayısıdır; `scene`/`frame`/`total` son ilerleme bildiren sahneye aittir. Paralel render başında bir `log` olayı süreç sayısını yazar.
 
-Aynı anda birden fazla komut satırı süreci çalıştırılabilir. Her biri bir işlemci çekirdeğini büyük ölçüde doldurur.
+**Süre:** Render süresi işlemciye bağlıdır. v1.3'te iki hızlanma var: arka plan degradesi her karede yeniden işlenmek yerine hazır tampon olarak kopyalanır (`engine.render.Backdrop`; tek süreçte kare süresi ~100 ms'den ~22 ms'ye indi, görüntü piksel piksel aynı) ve sahneler paralel çizilir (`--workers`). Ryzen 9 7950X3D (16 çekirdek / 32 iş parçacığı) üzerinde ölçülen değerler:
+
+| Proje | Video | Önce (v1.2, sıralı) | Şimdi (16 süreç) |
+|---|---|---|---|
+| `ornek_florida` (2 sahne) | 24 sn | ~117 sn | 18 sn |
+| `ornek_grafikler` (10 sahne) | 64 sn | — | 22 sn |
+| FredPull Florida projesi (31 sahne) | 3 dk 49 sn | ~20 dk (tahmini) | 66 sn (sahneler 45 sn, birleştirme ~20 sn) |
+
+16'dan fazla süreç kazandırmadı (24 ve 31 süreçte de ~66 sn); sınır en uzun sahneler ve tek süreçli birleştirmedir. Dosya boyutları: `01_state_map.mp4` 2,5 MB, `02_price_ladder.mp4` 0,7 MB, `birlesik.mp4` 3,3 MB, şeffaf `birlesik.mov` 8,4 MB (`ornek_florida`).
+
+Aynı anda birden fazla komut satırı süreci de çalıştırılabilir; ancak her biri kendi paralel süreçlerini açar, bu durumda `--workers` ile sınırlayın.
 
 ## 7. Yerel HTTP API
 
@@ -460,7 +471,7 @@ Sunucu yalnızca `127.0.0.1` adresini dinler ve kimlik doğrulaması yoktur. **A
 | `POST /api/preview` | `{"type", "params", "t", "transparent"}` | `image/png`, 960x540. Hatalı ayarda 422. |
 | `POST /api/import-assignments` | `{"state", "categories", "filename", "content_b64"}` | `{"assign", "unmatched", "ambiguous"}` (bkz. §8) |
 | `POST /api/render` | `{"project": {...}}` | `{"job_id"}`. Hatalı projede 422, süren başka iş varsa 409. |
-| `GET /api/jobs/{id}` | | `{"state": "running" \| "done" \| "failed" \| "canceled", "phase", "scene", "scenes", "frame", "total", "percent", "outputs", "dir", "error", "log"}`. `outputs` ve `dir`, `out/` klasörüne göreli yollardır. |
+| `GET /api/jobs/{id}` | | `{"state": "running" \| "done" \| "failed" \| "canceled", "phase", "scene", "scenes", "frame", "total", "percent", "parallel", "finished_scenes", "outputs", "dir", "error", "log"}`. `outputs` ve `dir`, `out/` klasörüne göreli yollardır. Arayüz render'ı paralel çalışır; `parallel` doğruysa `percent` toplam kare oranıdır, `finished_scenes` biten sahne sayısı. |
 | `POST /api/jobs/{id}/cancel` | | İşi durdurur, yarım dosyaları siler. |
 | `GET /api/outputs/{yol}` | | `out/` altındaki dosyayı indirir. |
 | `POST /api/open-folder` | `{"path"}` | Klasörü Windows Gezgini'nde açar (arayüz için). |
@@ -524,8 +535,8 @@ Depo kökü `sys.path` içinde olmalıdır. Tek kare için `engine.render.still_
 
 ```powershell
 .\.venv\Scripts\python -m pip install -r requirements-dev.txt
-.\.venv\Scripts\python -m pytest            # hızlı testler (~40 sn)
-.\.venv\Scripts\python -m pytest -m slow    # tam video render testleri (~3 dk)
+.\.venv\Scripts\python -m pytest            # hızlı testler (~30 sn)
+.\.venv\Scripts\python -m pytest -m slow    # tam video render testleri (~1 dk)
 ```
 
 `tests/test_regression.py`, `ornek_florida` projesinin karelerini `reference/` klasöründeki referans karelerle karşılaştırır. Kare başına ortalama piksel farkı 1,5/255'in altında olmalı. Referans kareler depoya konmadı; klasör yoksa bu testler atlanır.
@@ -563,6 +574,7 @@ Komut yeni kareleri önce gözle kontrol için `out/referans_kontrol/` klasörü
 | `engine/framing.py` | Kamera kadrajları |
 | `engine/scene.py` | `Scene` sözleşmesi ve yardımcılar |
 | `engine/render.py` | Kare üretimi, ffmpeg ile video yazma, PNG önizleme |
+| `engine/parallel.py` | Sahneleri aynı anda ayrı süreçlerde render etme, toplam ilerleme |
 | `engine/compose.py` | Sahneleri birleştirme |
 | `engine/project.py` | Proje JSON doğrulama/yükleme/kaydetme |
 | `engine/cli.py` | Komut satırı |

@@ -22,6 +22,7 @@ class Job:
         self.state = "running"
         self.phase = "render"
         self.scene, self.scenes, self.frame, self.total = 0, scenes, 0, 0
+        self.overall, self.finished_scenes = None, 0   # paralel render: toplam kare oranı ve biten sahne sayısı
         self.outputs = []
         self.error = None
         self.log = collections.deque(maxlen=20)
@@ -33,6 +34,8 @@ class Job:
             return 100
         if self.phase == "compose":
             return 99
+        if self.overall is not None:
+            return int(100 * self.overall)
         if not self.total:
             return 0
         return int(100 * (self.scene + self.frame / self.total) / max(self.scenes, 1))
@@ -43,6 +46,7 @@ class Job:
 
         return {"id": self.id, "state": self.state, "phase": self.phase, "scene": self.scene, "scenes": self.scenes,
                 "frame": self.frame, "total": self.total, "percent": self.percent(),
+                "parallel": self.overall is not None, "finished_scenes": self.finished_scenes,
                 "outputs": [rel(p) for p in self.outputs], "dir": rel(self.out_dir),
                 "error": self.error, "log": list(self.log)}
 
@@ -84,6 +88,8 @@ class JobManager:
             if kind == "progress":
                 job.phase = "render"
                 job.scene, job.scenes, job.frame, job.total = ev["scene"], ev["scenes"], ev["frame"], ev["total"]
+                if "overall" in ev:
+                    job.overall, job.finished_scenes = ev["overall"], ev.get("finished", 0)
             elif kind == "compose":
                 job.phase = "compose"
             elif kind == "output":

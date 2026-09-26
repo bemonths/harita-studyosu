@@ -64,6 +64,8 @@ Otomasyon, HTTP API ve proje dosyası şeması için ayrıntılı rehber: [docs/
 .\.venv\Scripts\python -m engine.cli still projects\ornek_florida.json --scene 0 --t 8.6 --out kare.png
 ```
 
+Sahneler aynı anda ayrı süreçlerde çizilir (varsayılan: işlemci iş parçacığı sayısının yarısı, ör. 32 iş parçacıklı işlemcide 16). Sayıyı `--workers N` ile değiştirin; `--workers 1` sahneleri sırayla çizer. Arayüzdeki "Render al" da paralel çalışır; ilerleme çubuğu biten sahne sayısını gösterir.
+
 ## Testler
 
 ```powershell

@@ -83,7 +83,8 @@ async function poll() {
   $("bar-fill").style.width = `${j.percent}%`;
   if (j.state === "running") {
     $("render-status").textContent = j.phase === "compose"
-      ? "Sahneler birleştiriliyor…" : `Sahne ${j.scene + 1}/${j.scenes} · %${j.percent}`;
+      ? "Sahneler birleştiriliyor…"
+      : j.parallel ? `${j.finished_scenes}/${j.scenes} sahne bitti · %${j.percent}` : `Sahne ${j.scene + 1}/${j.scenes} · %${j.percent}`;
     setTimeout(poll, 700);
     return;
   }

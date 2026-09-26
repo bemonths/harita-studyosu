@@ -1,6 +1,7 @@
 """Arayüzsüz kullanım.
   python -m engine.cli render projects/ornek_florida.json [--out KLASOR] [--transparent|--opaque]
                                                          [--no-combined] [--no-separate] [--progress-json]
+                                                         [--workers N]
   python -m engine.cli still projects/ornek_florida.json --scene 0 --t 8.6 --out kare.png [--dpi 100]
 """
 import argparse
@@ -9,7 +10,7 @@ import json
 import os
 import sys
 
-from engine import assets, compose, render
+from engine import assets, compose, parallel, render
 from engine import project as proj
 from scenes import REGISTRY
 
@@ -18,20 +19,27 @@ def output_dir(project, out=None):
     return out or os.path.join(assets.ROOT, "out", project["name"], dt.datetime.now().strftime("%Y%m%d-%H%M%S"))
 
 
-def run_render(project, out_dir, emit):
-    """Doğrulanmış projeyi render eder, üretilen dosyaların yollarını döndürür."""
+def run_render(project, out_dir, emit, workers=1):
+    """Doğrulanmış projeyi render eder, üretilen dosyaların yollarını döndürür.
+    workers: aynı anda render edilecek sahne sayısı; 0 otomatik (engine.parallel.auto_workers), 1 sırayla."""
     o = project["output"]
     ext = render.video_ext(o["transparent"])
     os.makedirs(out_dir, exist_ok=True)
     enabled = [s for s in project["scenes"] if s["enabled"]]
-    paths, durations = [], []
-    for i, s in enumerate(enabled):
-        path = os.path.join(out_dir, f"{i + 1:02d}_{s['type']}{ext}")
-        render.render_video(REGISTRY[s["type"]], s["params"], path, o["transparent"],
-                            on_progress=lambda f, n, i=i: emit(event="progress", scene=i, scenes=len(enabled),
-                                                                frame=f, total=n))
-        paths.append(path)
-        durations.append(float(s["params"]["duration"]))
+    paths = [os.path.join(out_dir, f"{i + 1:02d}_{s['type']}{ext}") for i, s in enumerate(enabled)]
+    durations = [float(s["params"]["duration"]) for s in enabled]
+    if workers == 0:
+        workers = parallel.auto_workers(len(enabled))
+    if workers > 1 and len(enabled) > 1:
+        emit(event="log", message=f"{len(enabled)} sahne, aynı anda {min(workers, len(enabled))} süreçte render ediliyor")
+        jobs = [(i, s["type"], s["params"], paths[i], int(round(durations[i] * render.FPS)))
+                for i, s in enumerate(enabled)]
+        parallel.render_scenes(jobs, o["transparent"], workers, emit)
+    else:
+        for i, s in enumerate(enabled):
+            render.render_video(REGISTRY[s["type"]], s["params"], paths[i], o["transparent"],
+                                on_progress=lambda f, n, i=i: emit(event="progress", scene=i, scenes=len(enabled),
+                                                                    frame=f, total=n))
     outputs = []
     if o["combined"] and len(paths) > 1:
         emit(event="compose")
@@ -70,6 +78,8 @@ def main(argv=None):
     r.add_argument("--no-combined", action="store_true")
     r.add_argument("--no-separate", action="store_true")
     r.add_argument("--progress-json", action="store_true")
+    r.add_argument("--workers", type=int, default=0,
+                   help="aynı anda render edilecek sahne sayısı (0: otomatik, işlemci sayısının yarısı; 1: sırayla)")
     s = sub.add_parser("still", help="tek kare PNG üretir")
     s.add_argument("project")
     s.add_argument("--scene", type=int, default=0)
@@ -83,6 +93,11 @@ def main(argv=None):
     def emit(**ev):
         if as_json:
             print(json.dumps(ev, ensure_ascii=False), flush=True)
+        elif ev["event"] == "progress" and "overall" in ev:
+            pct = int(ev["overall"] * 100)
+            if pct != getattr(emit, "last_pct", -1):
+                emit.last_pct = pct
+                print(f"%{pct} · {ev['finished']}/{ev['scenes']} sahne bitti", flush=True)
         elif ev["event"] == "progress" and (ev["frame"] % 60 == 0 or ev["frame"] == ev["total"]):
             print(f"sahne {ev['scene'] + 1}/{ev['scenes']}: kare {ev['frame']}/{ev['total']}", flush=True)
         elif ev["event"] == "compose":
@@ -110,7 +125,7 @@ def main(argv=None):
             errors = proj.validate(project)[1]  # seçenek değişiklikleri proje kurallarını bozmasın
             if errors:
                 raise proj.ProjectError(_describe(errors))
-            run_render(project, output_dir(project, args.out), emit)
+            run_render(project, output_dir(project, args.out), emit, workers=max(args.workers, 0))
             emit(event="done")
             if not as_json:
                 print("BİTTİ")

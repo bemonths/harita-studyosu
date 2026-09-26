@@ -42,6 +42,9 @@ def row_params():
             T(f"row{k}_value2_label", "Karşılaştırılanın etiketi", d["value2_label"], group=g, max_len=30),
             T(f"row{k}_value_label", "Değerin etiketi", d["value_label"], group=g, max_len=30),
             Choice(f"row{k}_format", "Biçim", default=d["format"], options=cl.FORMATS, group=g),
+            Number(f"row{k}_decimals", "Ondalık basamak", default=0, group=g, lo=0, hi=1, integer=True,
+                   help="Yalnız counter ve adet biçimi (ör. 6.2 ay)."),
+            T(f"row{k}_prefix", "Önek", "", group=g, max_len=5, help="Yalnız counter: sayının önüne (ör. $94)."),
             Number(f"row{k}_reveal", "Açılış anı (sn)", default=d["reveal"], group=g, lo=0, step=0.1,
                    help="Sahne süresinden büyükse satır soru olarak kalır."),
         ]
@@ -100,7 +103,8 @@ def setup(ctx):
         vx, vy = RX + RW - 50, y + 118
         appear = (0.4 + i * 0.25, 1.1 + i * 0.25)
         if kind == "counter":
-            updaters.append(counter_row(cv, frame, y, vx, vy, v, fmt, reveal, appear))
+            updaters.append(counter_row(cv, frame, y, vx, vy, v, fmt, reveal, appear,
+                                        p[f"row{k}_decimals"], p[f"row{k}_prefix"]))
         elif kind == "in10":
             updaters.append(in10_row(cv, frame, y, vx, vy, int(v), reveal, appear))
         else:
@@ -118,13 +122,17 @@ def setup(ctx):
     return update
 
 
-def counter_row(cv, frame, y, vx, vy, v, fmt, reveal, appear):
+def counter_row(cv, frame, y, vx, vy, v, fmt, reveal, appear, decimals=0, prefix=""):
     C = cv.C
     icon_off = cv.house_icon(RX + 40, y + 72, 105, C["line"])
     icon_on = cv.house_icon(RX + 40, y + 72, 105, C["accent"])
     q = cv.qmark(vx - 60, vy, 120)
     num = cv.text(vx, vy, "", 120, "numbers", C["text"], ha="right")
-    cv.fit_widest(num, [cl.fmt_value(v, fmt)], RW - 260)
+
+    def show(x):
+        return prefix + cl.fmt_value(x, fmt, decimals)
+
+    cv.fit_widest(num, [show(v)], RW - 260)
 
     def upd(t):
         pa = cl.grow(t, *appear)
@@ -134,7 +142,7 @@ def counter_row(cv, frame, y, vx, vy, v, fmt, reveal, appear):
         icon_off.set_alpha(0 if shown else pa)
         icon_on.set_alpha(pa if shown else 0)
         q.update(t, 0 if shown else pa)
-        num.set_text(cl.fmt_value(v * r, fmt))
+        num.set_text(show(v * r))
         num.set_alpha(pa if shown else 0)
 
     upd.question = q

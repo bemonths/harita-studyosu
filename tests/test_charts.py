@@ -140,6 +140,17 @@ def test_county_quiz_reveal_is_real_seconds():
         fr.close()
 
 
+def test_county_quiz_counter_decimals_and_prefix():
+    fr, _ = frames("county_quiz", row1_value=6.2, row1_decimals=1, row2_kind="counter", row2_value=94.3,
+                   row2_prefix="$")
+    try:
+        fr.draw(9.4)
+        row1, row2 = fr.update.parts["updaters"][:2]
+        assert row1.value.get_text() == "6.2" and row2.value.get_text() == "$94"
+    finally:
+        fr.close()
+
+
 def test_county_quiz_checks():
     s = REGISTRY["county_quiz"]
     assert "row2_value" in s.validate({"row2_value": 12})[1]

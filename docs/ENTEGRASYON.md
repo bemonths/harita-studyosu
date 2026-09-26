@@ -312,6 +312,8 @@ Solda county sınırı (`fips`, turuncu ve parıltılı), altında `heading` ve 
 | `rowk_value2_label` | metin | `2022 PEAK` | Karşılaştırılan değerin etiketi |
 | `rowk_value_label` | metin | `TODAY` | Değerin etiketi (`compare`) |
 | `rowk_format` | `count` / `money_k` | `count` / `money_k` | Değer biçimi |
+| `rowk_decimals` | 0 ya da 1 | 0 | Yalnız `counter` ve `count` biçimi: ondalık basamak (ör. `6.2` ay) |
+| `rowk_prefix` | metin, en fazla 5 karakter | `""` | Yalnız `counter`: sayının öneki (ör. `$` → `$94`) |
 | `rowk_reveal` | sayı ≥ 0, **gerçek saniye** | 3,4 / 5,0 / 6,6 | Açılış anı. Sahne süresinden büyükse satır soru olarak kalır (bölümün başında yalnız soruyu göstermek için). |
 
 Açılışta: `counter` sıfırdan değere 1 sn'de sayar ve ev simgesi yanar; `in10` on ev simgesinden değer kadarı kırmızıya döner ve `N IN 10` yazar; `compare` ev biçimli ikinci sütun karşılaştırılan değerin boyundan değerin boyuna gerçek oranla iner (büyük olan değer 126 px), sağda fark kendiliğinden yazılır (`−$55K`; değer büyükse `+` ve vurgu rengi).

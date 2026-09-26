@@ -29,7 +29,7 @@ def check(p):
 
 
 def auto_remainder(p):
-    return f"{p['center_prefix']}{p['max_value'] - p['value']:,.0f} OFF"
+    return f"{p['center_prefix']}{cl.fmt_value(p['max_value'] - p['value'], 'count')} OFF"
 
 
 def angle(v, vmax):
@@ -48,7 +48,7 @@ def setup(ctx):
                                  fc=C["loss"], zorder=5, alpha=0))
     has_rest = vmax - v > 0
     num = cv.text(CX, CY + 30, "", 190, "numbers", C["text"])
-    cv.fit_widest(num, [f"{prefix}{vmax:,.0f}"], 2 * (R - RING_W) - 40)
+    cv.fit_widest(num, [prefix + cl.fmt_value(vmax, "count")], 2 * (R - RING_W) - 40)
     lab = cv.text(CX, CY - 110, p["center_label"], 30, "label_bold", C["muted"])
     cv.fit(lab, 2 * (R - RING_W) - 30)
     side = cl.Group()
@@ -70,7 +70,7 @@ def setup(ctx):
         fill.set_theta1(angle(cur, vmax))
         fill.set_visible(cur > 0)
         fill.set_alpha(a)
-        num.set_text(f"{prefix}{cur:,.0f}")
+        num.set_text(prefix + cl.fmt_value(cur, "count"))
         num.set_alpha(a)
         lab.set_alpha(a)
         rest.set_alpha(a * cl.grow(t, 3.1, 3.6))

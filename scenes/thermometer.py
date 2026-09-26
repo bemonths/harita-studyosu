@@ -77,7 +77,7 @@ def setup(ctx):
         lab = fixed.add(cv.text(x, BASE - 40, r["label"], 30, "label_bold", C["text"]))
         cv.fit(lab, SPACING - 30)
         vt = cv.text(x + TUBE_W / 2 + 24, BASE, "", 64, "numbers", C["text"], ha="left")
-        cv.fit_widest(vt, [f"{vmax:,.{dec}f}"], SPACING - TUBE_W - 40)
+        cv.fit_widest(vt, [cl.fmt_value(vmax, "count", dec)], SPACING - TUBE_W - 40)
         values.append(vt)
         units.append(cv.text(x + TUBE_W / 2 + 26, BASE, p["unit_label"], 22, "label_bold", C["muted"], ha="left"))
 
@@ -92,7 +92,7 @@ def setup(ctx):
             cl.set_vbar_height(fills[i], hh)
             fills[i].set_alpha(0.95 * a)
             top = BASE + INSET + hh
-            values[i].set_text(f"{r['value'] * g:,.{dec}f}")
+            values[i].set_text(cl.fmt_value(r["value"] * g, "count", dec))
             values[i].set_y(top)
             values[i].set_alpha(a * min(1, g * 3))
             units[i].set_y(top - 52)

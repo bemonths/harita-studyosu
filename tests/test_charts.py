@@ -233,6 +233,27 @@ def test_tokenize_arrow_and_question_marks():
     assert cl.tokenize("A→B") == [("text", "A"), ("arrow",), ("text", "B")]
 
 
+def test_round_half_up():
+    from engine.scene import round_half_up
+    assert [round_half_up(v) for v in (0.5, 1.5, 2.5, 30.5, 30.54, -2.5, 29.49)] == [1, 2, 3, 31, 31, -3, 29]
+    assert round_half_up(6.25, 1) == 6.3 and round_half_up(2.675, 2) == 2.68 and round_half_up(94.3, 1) == 94.3
+    assert isinstance(round_half_up(2.5), int)
+    assert cl.fmt_value(30.5, "count") == "31" and cl.fmt_value(2.5, "count") == "3" and cl.fmt_value(1234.5, "count") == "1,235"
+    assert cl.fmt_value(6.25, "count", 1) == "6.3"
+    assert cl.money_k(2500) == "$3K" and cl.money_k(1_250_000) == "$1.3M"
+
+
+def test_bar_list_rounds_half_up_on_screen():
+    rows = [{"label": "FLORIDA", "value": 30.5}, {"label": "X", "value": 2.5}, {"label": "Y", "value": 30.54}]
+    fr, _ = frames("bar_list", rows=rows, decimals=0, value_suffix=" OF 100")
+    try:
+        fr.draw(6.4)
+        texts = [t.get_text() for t in fr.update.parts["value_text"]]
+        assert texts == ["31 OF 100", "3 OF 100", "31 OF 100"]
+    finally:
+        fr.close()
+
+
 def test_money_format():
-    assert cl.money_k(419000) == "$419K" and cl.money_k(1_250_000) == "$1.2M" and cl.money_k(2_000_000) == "$2M"
+    assert cl.money_k(419000) == "$419K" and cl.money_k(1_250_000) == "$1.3M" and cl.money_k(2_000_000) == "$2M"
     assert cl.signed(-55000, "money_k") == "−$55K" and cl.signed(1840, "count") == "+1,840"

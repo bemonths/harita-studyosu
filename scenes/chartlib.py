@@ -15,7 +15,7 @@ from matplotlib.patches import FancyBboxPatch, Polygon, Rectangle
 
 from engine import brand, geo
 from engine.params import Choice, Color, CountySelect, StateSelect, Text
-from engine.scene import cap_scale
+from engine.scene import cap_scale, round_half_up
 
 W, H = 1920, 1080
 # Prototipler Anton ve Cinzel'le tasarlandı; bu yazı tiplerinin cap_scale değerleri. Boyutlar bu oranla çarpılır,
@@ -64,16 +64,19 @@ def common_check(p):
 
 # ---------- biçimler ve zaman ----------
 def money_k(v):
+    """"$419K", "$1.2M"; yarımlar yukarı (engine.scene.round_half_up)."""
     a = abs(v)
     if a >= 1_000_000:
-        return f"${a / 1e6:.1f}M".replace(".0M", "M")
-    return f"${round(a / 1000):,}K"
+        return f"${round_half_up(a / 1e6, 1):.1f}M".replace(".0M", "M")
+    return f"${round_half_up(a / 1000):,}K"
 
 
 def fmt_value(v, fmt, decimals=0):
+    """Ekrana yazılan sayı: para (money_k) ya da binlik ayraçlı adet; yarımlar yukarı (30,5 → "31")."""
     if fmt == "money_k":
         return money_k(v)
-    return f"{v:,.{int(decimals)}f}"
+    dec = int(decimals)
+    return f"{round_half_up(v, dec):,.{dec}f}"
 
 
 def signed(diff, fmt):

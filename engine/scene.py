@@ -1,5 +1,6 @@
 """Sahne sözleşmesi ve sahnelerin ortak yardımcıları."""
 from dataclasses import dataclass
+from decimal import ROUND_HALF_UP, Decimal
 from typing import Callable
 
 import numpy as np
@@ -46,6 +47,14 @@ class Scene:
     def schema(self):
         return {"id": self.id, "title": self.title, "base_duration": self.base_duration,
                 "params": [p.schema() for p in self.all_params()]}
+
+
+def round_half_up(v, dec=0):
+    """Ekrana yazılan sayıların yuvarlaması: yarımlar yukarı (0,5 → 1; 30,5 → 31; 2,5 → 3; −2,5 → −3). Python'un round'u
+    ve biçimlendirmesi yarımı çifte yuvarlar (30,5 → 30, 2,5 → 2). Değer ondalık yazılışıyla (str) ele alınır, böylece
+    ikili gösterimden gelen 2,675 → 2,67 gibi sapmalar olmaz. dec 0 ise int döner."""
+    d = Decimal(str(v)).quantize(Decimal(1).scaleb(-int(dec)), rounding=ROUND_HALF_UP)
+    return int(d) if int(dec) <= 0 else float(d)
 
 
 def ease(t):

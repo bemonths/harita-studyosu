@@ -263,7 +263,8 @@ Sekiz grafik sahnesi (`question_board`, `county_quiz`, `house_bars`, `line_trend
 - **Oranlar gerçektir.** Sütun ve çubuklar sıfırdan başlar; boyları değerle doğru orantılıdır (`house_bars`'ta boy çatı tepesine kadar ölçülür). Görsel etki için ölçek abartılmaz. Tam boyun değeri (`max_value`) en büyük satırdan küçük olamaz.
 - **Yüzde işareti yok.** Kanal kuralı: oranlar `44 OF 100`, `3 IN 10`, `$94 OF EVERY $100` gibi yazılır. Bu sahnelerin metin alanlarında ve tablo etiketlerinde `%` doğrulama hatası verir (render başlamaz).
 - **Soru işaretleri** (`?`) vurgu renginde ve ±%6 genlikle, saniyede 0,9 kez nabız gibi atar. `->` ya da `→` yazı tipinde olmadığı için çizilmiş bir ok olarak gösterilir.
-- **Para biçimi** (`money_k`): değerler dolar olarak verilir (`419000` → `$419K`, `1250000` → `$1.2M`). Adet biçimi (`count`): `4,771`. Farklarda eksi işareti U+2212'dir (`−$55K`).
+- **Para biçimi** (`money_k`): değerler dolar olarak verilir (`419000` → `$419K`, `1250000` → `$1.3M`). Adet biçimi (`count`): `4,771`. Farklarda eksi işareti U+2212'dir (`−$55K`).
+- **Yuvarlama:** ekrana yazılan bütün sayılarda yarımlar yukarı yuvarlanır (`0.5` → 1, `30.5` → 31, `2.5` → 3; `engine.scene.round_half_up`, `decimal` ile). Python'un `round`'u ve biçimlendirmesi yarımı çifte yuvarladığı için (30,5 → 30) kullanılmaz. Değerleri ekrandaki basamaktan en az bir basamak fazla gönderin (ör. pay için `30.54`); son yuvarlamayı sahne yapar. Fiyat merdiveninin para ve gün yazıları da bu kurala uyar.
 - Renk ve yazı tipleri `brand.json`'dan gelir: yer adları `place`, büyük rakamlar `numbers`, etiketler `label_bold`/`label`. Hareket: sahne başında tek bir giriş sırası (başlık 0–0,5 sn), ardından değerlerin açılışı.
 - Şeffaf dışa aktarımda zemin (`backdrop`) katmanı da çizilir; istenmiyorsa `none` seçilir.
 

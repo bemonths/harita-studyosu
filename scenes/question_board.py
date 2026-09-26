@@ -13,7 +13,7 @@ CARD_W, CARD_H, GAP, CARD_Y, RISE = 410, 600, 36, 130, 40
 ICONS = (("house", "Ev"), ("county", "County sınırı"), ("houses10", "10 ev (2x5)"), ("none", "Yok"))
 DEFAULT_CARDS = [
     ("house", None, "$580K -> ?", "ONE HOUSE IN / FORT MYERS"),
-    ("county", "12015", "? HOMES", "PULLED OFF / THE MARKET"),
+    ("county", "12015", "? HOMES", "FEWER HOMES FOR SALE / IN ONE YEAR"),
     ("houses10", None, "? IN 10", "SELLERS CUT / THEIR PRICE"),
     ("county", "12055", "#1 ?", "AND IT'S NOT / CAPE CORAL"),
 ]

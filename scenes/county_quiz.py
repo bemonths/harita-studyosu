@@ -8,7 +8,7 @@ from matplotlib.patches import Polygon
 
 from engine import brand
 from engine.params import Choice, Number
-from engine.scene import Scene
+from engine.scene import Scene, round_half_up
 from scenes import chartlib as cl
 from scenes.chartlib import T
 
@@ -165,7 +165,7 @@ def in10_row(cv, frame, y, vx, vy, v, reveal, appear):
         frame.set_alpha(pa)
         shown = t >= reveal
         r = cl.grow(t, reveal, reveal + 1.0)
-        lit = int(round(v * r + 0.0001)) if shown else 0
+        lit = round_half_up(v * r) if shown else 0
         for j in range(10):
             off[j].set_alpha(0 if j < lit else pa)
             on[j].set_alpha(pa if j < lit else 0)

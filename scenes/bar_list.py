@@ -71,7 +71,7 @@ def setup(ctx):
         fixed.add(cv.rounded_bar(x0, y, wmax, bh, C["line"], z=4), 0.55)
         bars.append(cv.rounded_bar(x0, y, 0, bh, row_color(r, p, C), z=6))
         vt = cv.text(x0 + wmax * r["value"] / vmax + val_gap, yc, "", val_size, "numbers", C["text"], ha="left")
-        cv.fit_widest(vt, [f"{r['value']:,.{dec}f}{suffix}"], cl.W - 40 - (x0 + wmax * r["value"] / vmax + val_gap))
+        cv.fit_widest(vt, [cl.fmt_value(r["value"], "count", dec) + suffix], cl.W - 40 - (x0 + wmax * r["value"] / vmax + val_gap))
         value_txt.append(vt)
     if p["threshold"] is not None:
         xt = x0 + wmax * p["threshold"] / vmax
@@ -95,11 +95,11 @@ def setup(ctx):
             g = cl.grow(t, 0.7 + i * 0.6, 1.9 + i * 0.6) if big else cl.grow(t, 0.6 + i * 0.18, 1.6 + i * 0.18)
             cl.set_bar_width(bar, widths[i] * g)
             bar.set_alpha(0.95 * a)
-            v = round(r["value"] * g, dec)
-            vt.set_text(f"{v:,.{dec}f}{suffix}")
+            vt.set_text(cl.fmt_value(r["value"] * g, "count", dec) + suffix)   # yarımlar yukarı: 30,5 → "31"
             vt.set_alpha(min(1, (g - 0.9) * 10) if g > 0.9 else 0)
 
-    update.parts = {"bars": bars, "widths": widths, "values": [r["value"] for r in rows], "wmax": wmax, "max_value": vmax}
+    update.parts = {"bars": bars, "widths": widths, "values": [r["value"] for r in rows], "wmax": wmax, "max_value": vmax,
+                    "value_text": value_txt}
     return update
 
 

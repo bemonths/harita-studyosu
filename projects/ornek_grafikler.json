@@ -7,7 +7,7 @@
     {"type": "question_board", "enabled": true, "params": {
       "heading": "FLORIDA", "subtitle": "10 COUNTIES  ·  4 QUESTIONS", "state": "FL",
       "card1_icon": "house", "card1_value": "$580K -> ?", "card1_caption": "ONE HOUSE IN / FORT MYERS",
-      "card2_icon": "county", "card2_fips": "12015", "card2_value": "? HOMES", "card2_caption": "PULLED OFF / THE MARKET",
+      "card2_icon": "county", "card2_fips": "12015", "card2_value": "? HOMES", "card2_caption": "FEWER HOMES FOR SALE / IN ONE YEAR",
       "card3_icon": "houses10", "card3_value": "? IN 10", "card3_caption": "SELLERS CUT / THEIR PRICE",
       "card4_icon": "county", "card4_fips": "12055", "card4_value": "#1 ?", "card4_caption": "AND IT'S NOT / CAPE CORAL"
     }},

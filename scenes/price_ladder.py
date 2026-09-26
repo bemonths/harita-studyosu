@@ -9,7 +9,7 @@ import numpy as np
 
 from engine import brand
 from engine.params import Color, Date, Number, PriceTable, Text
-from engine.scene import Scene, cap_scale, ease, fit_text, seg
+from engine.scene import Scene, cap_scale, ease, fit_text, round_half_up, seg
 
 MONTHS = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"]
 NUM_WORDS = ["ZERO", "ONE", "TWO", "THREE", "FOUR", "FIVE", "SIX", "SEVEN", "EIGHT", "NINE", "TEN", "ELEVEN",
@@ -41,14 +41,15 @@ PARAMS = [
 
 
 def money_short(v):
+    """"$5K", "$1.2M"; yarımlar yukarı (engine.scene.round_half_up)."""
     a = abs(v)
     if a >= 1_000_000:
-        return f"${a / 1e6:.1f}M".replace(".0M", "M")
-    return f"${round(a / 1000):.0f}K"
+        return f"${round_half_up(a / 1e6, 1):.1f}M".replace(".0M", "M")
+    return f"${round_half_up(a / 1000)}K"
 
 
 def money_axis(v):
-    return f"${v / 1e6:g}M" if v >= 1_000_000 else f"${v / 1000:.0f}K"
+    return f"${v / 1e6:g}M" if v >= 1_000_000 else f"${round_half_up(v / 1000)}K"
 
 
 def change_label(prev, cur):
@@ -387,7 +388,7 @@ def setup(ctx):
             label.set_alpha(shown(last))
         V1.set_text(f"${int(cur):,}")
         V1.set_color(tuple(white * (1 - flash) + red * flash))
-        V2.set_text(f"{int(round(xh)) if t >= 2.4 else 0}")
+        V2.set_text(f"{round_half_up(xh) if t >= 2.4 else 0}")
         V3.set_text(f"{ncut}")
 
         if paid is None:

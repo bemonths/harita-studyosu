@@ -7,7 +7,7 @@ import math
 import re
 
 from engine.params import Number
-from engine.scene import Scene
+from engine.scene import Scene, round_half_up
 from scenes import chartlib as cl
 from scenes.chartlib import T
 
@@ -92,7 +92,7 @@ def setup(ctx):
     p, C = cv.p, cv.C
     before, after = p["before"], p["after"]
     unit = unit_of(p)
-    nb, na = round(before / unit), round(after / unit)
+    nb, na = round_half_up(before / unit), round_half_up(after / unit)
     n = max(nb, na)
     each = f"EACH HOUSE = {unit:,} HOMES"
     cv.p = dict(p, subtitle=f"{p['subtitle']}  ·  {each}" if p["subtitle"] else each)
@@ -137,7 +137,7 @@ def setup(ctx):
                 normal.set_alpha(app * a)
                 alt.set_alpha(0)
         done = sum(1 for k in changed if t >= start[k] + FADE)
-        val = before + round(diff * done / len(changed)) if changed else (after if t >= CHANGE_AT else before)
+        val = before + round_half_up(diff * done / len(changed)) if changed else (after if t >= CHANGE_AT else before)
         counter.set_text(f"{val:,}")
         counter.set_alpha(a)
         later = t >= CHANGE_AT

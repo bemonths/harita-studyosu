@@ -125,3 +125,42 @@ def test_schema():
                  "min": 0.5, "max": 2.0, "step": 0.01, "integer": False, "optional": False}
     assert P.StateSelect("state", "E").schema()["options"][0] == {"value": "AL", "label": "Alabama"}
     assert P.CountyAssign("assign", "A").schema()["categories_param"] == "categories"
+
+
+def test_choice():
+    c = P.Choice("k", "Tür", default="a", options=(("a", "A"), ("b", "B")))
+    assert c.validate("b", {}) == "b"
+    assert c.schema()["options"] == [{"value": "a", "label": "A"}, {"value": "b", "label": "B"}]
+    for bad in ("c", None, 1):
+        with pytest.raises(P.ParamError):
+            c.validate(bad, {})
+
+
+def test_value_table():
+    t = P.ValueTable("rows", "Satırlar", min_rows=2, max_rows=3, lo=0)
+    rows = t.validate([{"label": " 2019 ", "value": "243000"}, {"label": "2020", "value": 1.5, "highlight": 1}], {})
+    assert rows == [{"label": "2019", "value": 243000.0, "highlight": False},
+                    {"label": "2020", "value": 1.5, "highlight": True}]
+    assert t.schema()["min_rows"] == 2 and t.schema()["max_rows"] == 3
+    for bad in ([{"label": "A", "value": 1}],                                   # az satır
+                [{"label": "A", "value": 1}] * 4,                               # çok satır
+                [{"label": "", "value": 1}, {"label": "B", "value": 2}],        # boş etiket
+                [{"label": "X" * 25, "value": 1}, {"label": "B", "value": 2}],  # uzun etiket
+                [{"label": "A", "value": "x"}, {"label": "B", "value": 2}],     # sayı değil
+                [{"label": "A", "value": True}, {"label": "B", "value": 2}],
+                [{"label": "A", "value": -1}, {"label": "B", "value": 2}],      # en küçük değerin altında
+                "liste değil"):
+        with pytest.raises(P.ParamError):
+            t.validate(bad, {})
+    ints = P.ValueTable("n", "N", min_rows=1, integer=True)
+    assert ints.validate([{"label": "A", "value": 3.0}], {})[0]["value"] == 3
+    with pytest.raises(P.ParamError, match="tam sayı"):
+        ints.validate([{"label": "A", "value": 3.5}], {})
+
+
+def test_text_no_percent():
+    t = P.Text("title", "Başlık", no_percent=True)
+    assert t.validate("44 OF 100", {}) == "44 OF 100"
+    with pytest.raises(P.ParamError, match="yüzde"):
+        t.validate("44%", {})
+    assert P.Text("x", "X").validate("44%", {}) == "44%"  # eski sahnelerde kural yok

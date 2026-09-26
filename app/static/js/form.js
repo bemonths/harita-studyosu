@@ -2,9 +2,11 @@
 import { h } from "./dom.js";
 import { priceTable } from "./pricetable.js";
 import { currentScene, currentSchema, geoFor, sceneErrors, setParam, store } from "./state.js";
+import { valueTable } from "./valuetable.js";
 
-const GROUP_ORDER = ["Genel", "Veri", "Renkler", "County boyama", "Vurgu", "Kamera", "Zaman"];
-const CLOSED = new Set(["Kamera"]);
+const GROUP_ORDER = ["Başlık", "Genel", "Veri", "Kart 1", "Kart 2", "Kart 3", "Kart 4", "Satır 1", "Satır 2", "Satır 3",
+  "Ok", "Referans", "Eşik", "Eşikler", "Renkler", "County boyama", "Vurgu", "Zemin", "Kamera", "Zaman"];
+const CLOSED = new Set(["Kamera", "Zemin"]);
 let token = 0;
 
 export function assignText(value) {
@@ -80,6 +82,13 @@ async function control(p, value, scene, id) {
       return h("div", { class: "help", id, dataset: { assignSummary: p.name } }, assignText(value));
     case "price_table":
       return priceTable(value, rows => set(rows));
+    case "value_table":
+      return valueTable(p, value, rows => set(rows));
+    case "choice": {
+      const sel = h("select", { id, onchange: e => set(e.target.value) });
+      for (const o of p.options) sel.add(new Option(o.label, o.value, false, o.value === value));
+      return sel;
+    }
     default:
       return h("div", { class: "err" }, `Desteklenmeyen ayar tipi: ${p.kind}`);
   }

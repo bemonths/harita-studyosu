@@ -21,6 +21,7 @@ DEFAULTS = {
         "muted": "#a9b4c2",      # alt başlıklar, açıklama, eksen ve sayaç başlıkları
         "accent": "#ff7a1f",     # neon sınır, vurgu parlaması, fiyat çizgisi, üst satır
         "loss": "#e0301e",       # indirim noktaları/etiketleri, zarar
+        "neutral": "#5b7fa6",    # grafik sahneleri: karşılaştırma sütun ve çubuklarının nötr rengi
     },
     "categories": [
         {"key": "buyers", "label": "BUYERS PULLED BACK", "color": "#e0301e"},

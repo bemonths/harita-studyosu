@@ -1,0 +1,103 @@
+{
+  "version": 1,
+  "name": "ornek_grafikler",
+  "transition": 0.6,
+  "output": {"separate": true, "combined": true, "transparent": false},
+  "scenes": [
+    {"type": "question_board", "enabled": true, "params": {
+      "heading": "FLORIDA", "subtitle": "10 COUNTIES  ·  4 QUESTIONS", "state": "FL",
+      "card1_icon": "house", "card1_value": "$580K -> ?", "card1_caption": "ONE HOUSE IN / FORT MYERS",
+      "card2_icon": "county", "card2_fips": "12015", "card2_value": "? HOMES", "card2_caption": "PULLED OFF / THE MARKET",
+      "card3_icon": "houses10", "card3_value": "? IN 10", "card3_caption": "SELLERS CUT / THEIR PRICE",
+      "card4_icon": "county", "card4_fips": "12055", "card4_value": "#1 ?", "card4_caption": "AND IT'S NOT / CAPE CORAL"
+    }},
+    {"type": "county_quiz", "enabled": true, "params": {
+      "heading": "LEE COUNTY", "subtitle": "CAPE CORAL  ·  FORT MYERS", "state": "FL", "fips": "12071",
+      "row1_kind": "counter", "row1_label": "HOMES FOR SALE", "row1_note": "AUGUST 2026", "row1_value": 9351,
+      "row1_format": "count", "row1_reveal": 3.4,
+      "row2_kind": "in10", "row2_label": "SELLERS WHO CUT THEIR PRICE", "row2_note": "AUGUST 2026", "row2_value": 3,
+      "row2_reveal": 5.0,
+      "row3_kind": "compare", "row3_label": "WHAT BUYERS PAY", "row3_note": "MAY 2026 SALES", "row3_value": 360000,
+      "row3_value2": 415000, "row3_value2_label": "2022 PEAK", "row3_value_label": "TODAY", "row3_format": "money_k",
+      "row3_reveal": 6.6
+    }},
+    {"type": "house_bars", "enabled": true, "params": {
+      "heading": "LEE COUNTY", "title": "WHAT A TYPICAL HOME SOLD FOR", "subtitle": "MEDIAN SALE PRICE  ·  MAY OF EACH YEAR",
+      "source": "SOURCE: REDFIN", "callout_value": "−$59K", "callout_label": "SINCE MAY 2022",
+      "state": "FL", "fips": "12071",
+      "bars": [
+        {"label": "2019", "value": 243000, "highlight": false}, {"label": "2020", "value": 243000, "highlight": false},
+        {"label": "2021", "value": 319000, "highlight": false}, {"label": "2022", "value": 419000, "highlight": true},
+        {"label": "2023", "value": 411000, "highlight": false}, {"label": "2024", "value": 399000, "highlight": false},
+        {"label": "2025", "value": 368000, "highlight": false}, {"label": "2026", "value": 360000, "highlight": false}
+      ],
+      "value_format": "money_k", "arrow_from": "2022", "arrow_to": "2026"
+    }},
+    {"type": "house_bars", "enabled": true, "params": {
+      "heading": "POLK COUNTY", "title": "HOMES FOR SALE", "subtitle": "EVERY AUGUST  ·  LAKELAND  ·  HAINES CITY",
+      "source": "SOURCE: REALTOR.COM VIA FRED", "callout_value": "+1,840", "callout_label": "MORE THAN AUGUST 2019",
+      "callout_color": "#ff7a1f", "state": "FL", "fips": "12105",
+      "bars": [
+        {"label": "2019", "value": 2931, "highlight": false}, {"label": "2020", "value": 2078, "highlight": false},
+        {"label": "2021", "value": 1082, "highlight": false}, {"label": "2022", "value": 2564, "highlight": false},
+        {"label": "2023", "value": 2769, "highlight": true}, {"label": "2024", "value": 4543, "highlight": false},
+        {"label": "2025", "value": 4912, "highlight": false}, {"label": "2026", "value": 4771, "highlight": false}
+      ],
+      "value_format": "count", "arrow_from": "2021", "arrow_to": "2026", "arrow_color": "#e9b949",
+      "highlight_color": "#5b7fa6", "after_color": "#ff7a1f"
+    }},
+    {"type": "line_trend", "enabled": true, "params": {
+      "heading": "OSCEOLA COUNTY", "title": "HOMES FOR SALE", "subtitle": "EVERY AUGUST  ·  KISSIMMEE  ·  ST. CLOUD",
+      "source": "SOURCE: REALTOR.COM VIA FRED", "callout_value": "2×", "callout_label": "THE 2019 LEVEL",
+      "callout_color": "#ff7a1f", "state": "FL", "fips": "12097",
+      "points": [
+        {"label": "2016", "value": 2445}, {"label": "2017", "value": 2380}, {"label": "2018", "value": 1991},
+        {"label": "2019", "value": 2075}, {"label": "2020", "value": 2278}, {"label": "2021", "value": 816},
+        {"label": "2022", "value": 1992}, {"label": "2023", "value": 2316}, {"label": "2024", "value": 3801},
+        {"label": "2025", "value": 4282}, {"label": "2026", "value": 4135}
+      ],
+      "value_format": "count", "ref_value": 2075, "ref_label": "2019 LEVEL: 2,075", "mark_min": "yes",
+      "axis_from_zero": "yes"
+    }},
+    {"type": "bar_list", "enabled": true, "params": {
+      "heading": "PASCO COUNTY", "title": "SELLERS WHO CUT THEIR PRICE",
+      "subtitle": "OUT OF EVERY 100 HOMES FOR SALE  ·  AUGUST 2026", "source": "SOURCE: REALTOR.COM VIA FRED",
+      "state": "FL", "fips": "12101",
+      "rows": [
+        {"label": "PASCO COUNTY", "value": 44, "highlight": true}, {"label": "FLORIDA", "value": 31, "highlight": false},
+        {"label": "UNITED STATES", "value": 35, "highlight": false}
+      ],
+      "max_value": 100, "value_suffix": " OF 100", "decimals": 0
+    }},
+    {"type": "bar_list", "enabled": true, "params": {
+      "heading": "FLORIDA  ·  10 COUNTIES", "title": "HOW MANY MONTHS TO SELL EVERY HOME",
+      "subtitle": "IF NO NEW HOME WERE LISTED  ·  MAY 2026", "source": "SOURCE: REDFIN", "state": "FL",
+      "rows": [
+        {"label": "MIAMI-DADE", "value": 7.7}, {"label": "WALTON", "value": 6.3}, {"label": "HIGHLANDS", "value": 6.2},
+        {"label": "ST. LUCIE", "value": 6.1}, {"label": "OSCEOLA", "value": 5.6}, {"label": "COLLIER", "value": 5.3},
+        {"label": "LEE", "value": 4.9}, {"label": "CHARLOTTE", "value": 4.3}, {"label": "POLK", "value": 4.2},
+        {"label": "PASCO", "value": 3.7}
+      ],
+      "max_value": 8, "value_suffix": "", "decimals": 1, "threshold": 6,
+      "threshold_label": "BUYER'S MARKET: 6+ MONTHS"
+    }},
+    {"type": "ring", "enabled": true, "params": {
+      "heading": "COLLIER COUNTY", "title": "WHAT BUYERS REALLY PAY", "subtitle": "NAPLES  ·  MAY 2026 SALES",
+      "source": "SOURCE: REDFIN", "state": "FL", "fips": "12021",
+      "value": 94.3, "max_value": 100, "center_prefix": "$", "center_label": "OF EVERY $100 ASKED",
+      "remainder_label": "AT THE TABLE"
+    }},
+    {"type": "thermometer", "enabled": true, "params": {
+      "heading": "HIGHLANDS COUNTY", "title": "HOW LONG TO SELL EVERY HOME FOR SALE",
+      "subtitle": "IF NO NEW HOME WERE LISTED  ·  MAY 2026", "source": "SOURCE: REDFIN", "state": "FL", "fips": "12055",
+      "tubes": [{"label": "HIGHLANDS", "value": 6.2}, {"label": "FLORIDA", "value": 4.7}],
+      "max_value": 8, "unit_label": "MONTHS", "decimals": 1,
+      "low_value": 3, "low_label": "SELLER'S MARKET: UNDER 3", "high_value": 6, "high_label": "BUYER'S MARKET: OVER 6"
+    }},
+    {"type": "house_grid", "enabled": true, "params": {
+      "heading": "CHARLOTTE COUNTY", "title": "HOMES FOR SALE", "subtitle": "PUNTA GORDA  ·  PORT CHARLOTTE",
+      "source": "SOURCE: REALTOR.COM VIA FRED  ·  AUGUST 2025 AND AUGUST 2026", "state": "FL", "fips": "12015",
+      "before": 3625, "after": 2705, "unit": 100, "before_label": "AUGUST 2025", "after_label": "AUGUST 2026"
+    }}
+  ]
+}

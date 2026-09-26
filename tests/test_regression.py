@@ -9,13 +9,15 @@ from PIL import Image
 
 from engine import assets, render
 from scenes import REGISTRY
+from tests.make_reference import SETS
 
 REF = os.path.join(assets.ROOT, "reference")
 SAMPLE = os.path.join(assets.ROOT, "projects", "ornek_florida.json")
+GRAFIKLER = os.path.join(assets.ROOT, "projects", "ornek_grafikler.json")
 
 
-def sample_scene(i):
-    with open(SAMPLE, encoding="utf-8") as f:
+def sample_scene(i, path=SAMPLE):
+    with open(path, encoding="utf-8") as f:
         s = json.load(f)["scenes"][i]
     scene = REGISTRY[s["type"]]
     clean, errors = scene.validate(s["params"])
@@ -46,3 +48,11 @@ def test_state_map_matches_original():
 def test_price_ladder_matches_original():
     scene, p = sample_scene(1)
     compare(scene, p, "b", [1.0, 5.0, 8.0, 10.5, 11.0])
+
+
+@pytest.mark.parametrize("prefix", sorted(SETS["grafikler"][1]))
+def test_chart_scenes_match_reference(prefix):
+    """ornek_grafikler: grafik ve vaat sahnelerinin kareleri (tests/make_reference.py → SETS["grafikler"])."""
+    i, times = SETS["grafikler"][1][prefix]
+    scene, p = sample_scene(i, GRAFIKLER)
+    compare(scene, p, prefix, times)

@@ -97,6 +97,19 @@ def state_rings(fips):
     return [proj(r) for r in _outlines()[0][fips]]
 
 
+def state_lonlat(fips):
+    """Eyaletin projeksiyonsuz (lon/lat) dış halkaları."""
+    return list(_outlines()[0][fips])
+
+
+def county_lonlat(fips):
+    """County'nin projeksiyonsuz (lon/lat) dış halkaları; bulunamazsa boş liste."""
+    for f in _features():
+        if f["id"] == fips:
+            return rings(f["geometry"])
+    return []
+
+
 @dataclass(frozen=True, eq=False)
 class County:
     fips: str

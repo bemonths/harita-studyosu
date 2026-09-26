@@ -50,6 +50,8 @@ table.prices { width: 100%; border-collapse: collapse; margin-bottom: 6px; }
 table.prices th { text-align: left; font-size: 11px; color: var(--muted); font-weight: 600; }
 table.prices td { padding: 2px; }
 table.prices input { width: 100%; }
+table.values input[type=checkbox] { width: auto; }
+table.values td:nth-child(3), table.values th:nth-child(3) { width: 24px; text-align: center; }
 .preview-wrap { position: relative; aspect-ratio: 16 / 9; border-radius: var(--radius); overflow: hidden; border: 1px solid var(--line); background: #070d18; }
 .preview-wrap.checker { background: repeating-conic-gradient(#1a2233 0% 25%, #111827 0% 50%) 50% / 24px 24px; }
 .preview-wrap img { width: 100%; height: 100%; display: block; object-fit: contain; }

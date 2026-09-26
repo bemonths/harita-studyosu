@@ -7,7 +7,8 @@
     "text": "#f4ecdd",
     "muted": "#a9b4c2",
     "accent": "#ff7a1f",
-    "loss": "#e0301e"
+    "loss": "#e0301e",
+    "neutral": "#5b7fa6"
   },
   "categories": [
     {"key": "buyers",  "label": "BUYERS PULLED BACK",  "color": "#e0301e"},

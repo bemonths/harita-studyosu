@@ -2,18 +2,28 @@
 
 Bu belge, Harita Stüdyosu'nu bir iş akışına ya da başka bir yapay zeka ajanına bağlayacak kişiler için yazıldı. Aracın ne ürettiğini, nasıl sürüleceğini, girdilerin biçimini, çıktıları ve sınırları anlatır. Son kullanıcı kılavuzu [README.md](../README.md) dosyasındadır.
 
-- **Sürüm:** v1.2 (2026-09-24): metinlerde `$` işareti düz yazılır (§5), vurgusuz `state_map`'te yavaş yakınlaşma (§5.1), ortalı `county_focus` açılışı ve yeni etiket yerleşimi (§5.3). v1.1: marka dosyası (§3.1), `county_focus` sahnesi (§5.3), dosyadan proje yükleme (§4, §7). Proje dosyası şema sürümü: `1`.
+- **Sürüm:** v1.3 (2026-09-26): sekiz grafik ve vaat sahnesi (`question_board`, `county_quiz`, `house_bars`, `line_trend`, `bar_list`, `ring`, `thermometer`, `house_grid`; §5.5–5.13), yeni ayar tipleri `Choice` ve `ValueTable` (§10), marka rengi `neutral` (§3.1), örnek proje `projects/ornek_grafikler.json`. v1.2 (2026-09-24): metinlerde `$` işareti düz yazılır (§5), vurgusuz `state_map`'te yavaş yakınlaşma (§5.1), ortalı `county_focus` açılışı ve yeni etiket yerleşimi (§5.3). v1.1: marka dosyası (§3.1), `county_focus` sahnesi (§5.3), dosyadan proje yükleme (§4, §7). Proje dosyası şema sürümü: `1`.
 - **Depo:** https://github.com/bemonths/harita-studyosu
 
 ## 1. Ne üretir?
 
-ABD harita animasyonlarını video olarak üretir. Çıktı 1920x1080, 30 kare/sn, ses yok. Üç sahne tipi var:
+ABD harita animasyonlarını ve veri grafiklerini video olarak üretir. Çıktı 1920x1080, 30 kare/sn, ses yok. On bir sahne tipi var:
 
 | Sahne tipi (`type`) | Ne gösterir | Temel süre |
 |---|---|---|
 | `state_map` | ABD'den seçilen eyalete inen kamera, neon sınır çizimi, kategorilere göre boyanan county'ler, açıklama kutusu, isteğe bağlı olarak vurgulanan bir county ve etiketi | 13 sn |
 | `county_focus` | Boyalı eyalet kadrajından anlatılan county'ye yakınlaşma, kenar nabzı ve etiket. Başlık ve açıklama kutusu yok. County bölümlerini açmak için. | 5 sn |
 | `price_ladder` | Bir evin fiyat geçmişi (basamaklı çizgi), indirim etiketleri, fiyat/gün/indirim sayaçları, alış fiyatıyla karşılaştırma | 11,5 sn |
+| `question_board` | Vaat ekranı: ortada başlık, altında 2–4 soru kartı (simge, nabızlı "?" içeren değer, açıklama) | 6 sn |
+| `county_quiz` | County soru kartı: solda county sınırı, sağda 1–3 satır; değerler "?" olarak durur, sırayla açılır | 9,5 sn |
+| `house_bars` | Ev biçimli sütunlar (ör. yıllara göre fiyat), vurgulanan sütun ve iki sütun arasında ok | 7 sn |
+| `line_trend` | İniş çıkışlı çizgi ve ok, isteğe bağlı referans çizgisi (ör. 2019 düzeyi) | 7 sn |
+| `bar_list` | Yatay ilerleme çubukları (2–10 satır), isteğe bağlı eşik çizgisi | 6,5 sn |
+| `ring` | Dolan halka ve kalan dilim (ör. "$94 OF EVERY $100 ASKED", "$6 OFF") | 6 sn |
+| `thermometer` | 1–3 tüp, alt ve üst eşik çizgileri (ör. aylık stok) | 6,5 sn |
+| `house_grid` | Ev ızgarası: önce/sonra değerine göre simgeler söner ya da eklenir, sayaç | 7,5 sn |
+
+Grafik sahneleri veriyi ayar olarak alır ve çizer; veriyi hesaplamak aracı süren tarafın (ör. FredPull) işidir. Arayüzden elle de doldurulabilirler.
 
 Bir **proje**, bu sahnelerden oluşan sıralı bir listedir. Her sahne ayrı video olarak alınabilir, sahneler geçişli (crossfade) tek videoda da birleştirilebilir. Arka plan koyu degrade (MP4, H.264) ya da şeffaf (MOV, ProRes 4444, alfa kanallı) olabilir.
 
@@ -59,7 +69,8 @@ Depo kökündeki `brand.json` kanalın renk paletini, varsayılan renk kategoril
 | `text` | `#f4ecdd` | Başlıklar, yer adları, büyük sayaçlar |
 | `muted` | `#a9b4c2` | Alt başlıklar, açıklama kutusu yazıları, eksen etiketleri, sayaç başlıkları |
 | `accent` | `#ff7a1f` | Neon sınır, vurgulanan county'nin kenar parlaması, fiyat merdiveninin çizgisi ve üst satırı. Sahnelerdeki `accent` ayarının varsayılanıdır. |
-| `loss` | `#e0301e` | İndirim noktaları ve etiketleri; güncel fiyat alış fiyatının altındaysa fark oku ve yazısı |
+| `loss` | `#e0301e` | İndirim noktaları ve etiketleri; güncel fiyat alış fiyatının altındaysa fark oku ve yazısı; grafik sahnelerinde düşüş ve eşiği aşan değerler |
+| `neutral` | `#5b7fa6` | Grafik sahnelerinde karşılaştırma sütun ve çubuklarının nötr rengi |
 
 `categories`, `state_map` ve `county_focus` sahnelerinin varsayılan renk kategorileridir; kuralları §5.1'deki `categories` ayarıyla aynıdır. Fiyat merdiveninde alış fiyatı çizgisi ve yazısı `price` kategorisinin rengini kullanır.
 
@@ -105,7 +116,7 @@ Doğrulama render'dan önce otomatik yapılır. Hatalı bir alan varsa render ba
 | `output.separate` | Her sahne ayrı dosya olarak kalsın mı. |
 | `output.combined` | Açık sahneler tek videoda birleştirilsin mi. Tek sahne açıksa bu ayar yok sayılır. İki seçenekten en az biri `true` olmalı. |
 | `output.transparent` | `true` ise arka plan şeffaf olur ve çıktı `.mov` (ProRes 4444) olarak yazılır. |
-| `scenes[].type` | `state_map`, `county_focus` ya da `price_ladder`. Bilinmeyen tip yapısal hatadır. |
+| `scenes[].type` | §1'deki on bir tipten biri. Bilinmeyen tip yapısal hatadır. |
 | `scenes[].enabled` | `false` olan sahne render edilmez. En az bir sahne açık olmalı. |
 | `scenes[].params` | Sahne ayarları. Eksik alanlar varsayılanla doldurulur. |
 
@@ -245,6 +256,142 @@ Doğrulama hataları şu biçimde bir listedir:
 
 `scene`, `scenes` dizisindeki sıradır (0'dan başlar). Proje düzeyindeki hatalarda `scene` değeri `null`, `param` değeri `name`, `transition`, `output` ya da `scenes` olur.
 
+### 5.5 Grafik sahnelerinin ortak kuralları ve ayarları
+
+Sekiz grafik sahnesi (`question_board`, `county_quiz`, `house_bars`, `line_trend`, `bar_list`, `ring`, `thermometer`, `house_grid`) için geçerlidir. Görsel referans ve prototipler: `docs/referans_grafikler/` (bkz. `OKU.md`).
+
+- **Oranlar gerçektir.** Sütun ve çubuklar sıfırdan başlar; boyları değerle doğru orantılıdır (`house_bars`'ta boy çatı tepesine kadar ölçülür). Görsel etki için ölçek abartılmaz. Tam boyun değeri (`max_value`) en büyük satırdan küçük olamaz.
+- **Yüzde işareti yok.** Kanal kuralı: oranlar `44 OF 100`, `3 IN 10`, `$94 OF EVERY $100` gibi yazılır. Bu sahnelerin metin alanlarında ve tablo etiketlerinde `%` doğrulama hatası verir (render başlamaz).
+- **Soru işaretleri** (`?`) vurgu renginde ve ±%6 genlikle, saniyede 0,9 kez nabız gibi atar. `->` ya da `→` yazı tipinde olmadığı için çizilmiş bir ok olarak gösterilir.
+- **Para biçimi** (`money_k`): değerler dolar olarak verilir (`419000` → `$419K`, `1250000` → `$1.2M`). Adet biçimi (`count`): `4,771`. Farklarda eksi işareti U+2212'dir (`−$55K`).
+- Renk ve yazı tipleri `brand.json`'dan gelir: yer adları `place`, büyük rakamlar `numbers`, etiketler `label_bold`/`label`. Hareket: sahne başında tek bir giriş sırası (başlık 0–0,5 sn), ardından değerlerin açılışı.
+- Şeffaf dışa aktarımda zemin (`backdrop`) katmanı da çizilir; istenmiyorsa `none` seçilir.
+
+Ortak ayarlar (sekizinde de var; arayüzde "Başlık" ve "Zemin" grupları):
+
+| Ayar | Tip / kural | Varsayılan | Anlamı |
+|---|---|---|---|
+| `heading` | metin | sahneye göre | Sol üstte yer adı (`place`), ör. `LEE COUNTY`. `question_board`'da ortada büyük başlık, `county_quiz`'de county sınırının altında. |
+| `title` | metin | sahneye göre | Başlığın altındaki kalın satır, ör. `WHAT A TYPICAL HOME SOLD FOR` |
+| `subtitle` | metin | sahneye göre | İnce açıklama satırı. `county_quiz`'de şehirler, `house_grid`'de sonuna birim eklenir (`EACH HOUSE = 100 HOMES`). |
+| `source` | metin | sahneye göre | Sol altta kaynak satırı; boşsa çizilmez. |
+| `callout_value` | metin | sahneye göre | Sağ üstte büyük rakam, ör. `−$59K`; boşsa çizilmez. |
+| `callout_label` | metin | sahneye göre | Büyük rakamın altındaki satır. Rakamın taban çizgisinin 14 px altından başlar, üst üste binmez. |
+| `callout_color` | `#rrggbb` | `loss` (`line_trend`'de `accent`) | Büyük rakamın rengi |
+| `backdrop` | `none` / `county` / `state` | `none` | `county`: sağ yarıda çok soluk (dolgu %6, kenar %15) büyük county sınırı; `fips` gerekir. `state`: ortada soluk eyalet sınırı. |
+| `state` | 48 eyaletin kısaltması | `FL` | `fips` ve kartlardaki county'lerin eyaleti; `state` zemininde çizilen eyalet |
+| `fips` | seçili eyaletin 5 haneli FIPS'i ya da `null` | sahneye göre | Zemin için county; `county_quiz`'de soldaki county sınırı |
+| `duration` | temel sürenin 0,5–2 katı | temel süre | Bütün zamanlamalar orantılı ölçeklenir (`county_quiz`'deki açılış anları hariç, onlar gerçek saniyedir). |
+
+Kullanılmayan ortak ayarlar: `question_board`'da `title` başlığın altında ortalanır; `county_quiz`'de `title` ve `callout_*` çizilmez (sağ taraf satırlara ayrılmıştır); `house_grid`'de `callout_*` çizilmez (sağ üst köşe sayaca ayrılmıştır).
+
+Metin ayarlarında satır sonu yoktur; sığmayan satırlar küçültülür. County sınırları simgelerde ve zeminde yerel eşdikdörtgen projeksiyonla çizilir (harita sahnelerindeki Albers'tan farklı olarak dik durur).
+
+### 5.6 `question_board` (vaat ekranı, 6 sn)
+
+Ortada `heading` (ör. `FLORIDA`), altında `subtitle` (ör. `10 COUNTIES  ·  4 QUESTIONS`). Altında 2–4 kart yan yana; kart sayısına göre ortalanır. Kartlar 0,6. saniyeden başlayarak 0,8 sn arayla, 40 px aşağıdan yükselerek belirir.
+
+| Ayar (k = 1..4) | Tip / kural | Anlamı |
+|---|---|---|
+| `cardk_icon` | `house` / `county` / `houses10` / `none` | Kartın simgesi: büyük ev, county sınırı (turuncu, parıltılı), 2x5 ev ya da yok |
+| `cardk_fips` | seçili eyaletin FIPS'i ya da `null` | `county` simgesi için zorunlu |
+| `cardk_value` | metin, en fazla 40 karakter | Büyük satır. `?` vurgu renginde ve nabızlı, `->` ok. **Boşsa kart çizilmez**; en az iki kart dolu olmalı. |
+| `cardk_caption` | metin, en fazla 60 karakter | Açıklama, en fazla iki satır; satır sonu için ` / ` (ör. `ONE HOUSE IN / FORT MYERS`) |
+
+### 5.7 `county_quiz` (county soru kartı, 9,5 sn)
+
+Solda county sınırı (`fips`, turuncu ve parıltılı), altında `heading` ve `subtitle` (şehirler). Sağda 1–3 satır kartı; satırlar 0,4. saniyeden 0,25 sn arayla belirir. Her satırın değeri açılış anına (`rowk_reveal`) kadar `?` olarak durur.
+
+| Ayar (k = 1..3) | Tip / kural | Varsayılan | Anlamı |
+|---|---|---|---|
+| `rowk_kind` | `counter` / `in10` / `compare` / `none` | 1: `counter`, 2: `in10`, 3: `compare` | `none`: satır çizilmez. En az bir satır olmalı. |
+| `rowk_label` | metin | `HOMES FOR SALE` … | Satır başlığı |
+| `rowk_note` | metin | `AUGUST 2026` … | Sol alttaki küçük satır |
+| `rowk_value` | sayı ≥ 0 | 9351 / 3 / 360000 | Değer. `in10`'da 0–10 arası tam sayı. |
+| `rowk_value2` | sayı ya da `null` | `compare`: 415000 | Yalnız `compare`: karşılaştırılan değer (ör. zirve); `compare`'de zorunlu |
+| `rowk_value2_label` | metin | `2022 PEAK` | Karşılaştırılan değerin etiketi |
+| `rowk_value_label` | metin | `TODAY` | Değerin etiketi (`compare`) |
+| `rowk_format` | `count` / `money_k` | `count` / `money_k` | Değer biçimi |
+| `rowk_reveal` | sayı ≥ 0, **gerçek saniye** | 3,4 / 5,0 / 6,6 | Açılış anı. Sahne süresinden büyükse satır soru olarak kalır (bölümün başında yalnız soruyu göstermek için). |
+
+Açılışta: `counter` sıfırdan değere 1 sn'de sayar ve ev simgesi yanar; `in10` on ev simgesinden değer kadarı kırmızıya döner ve `N IN 10` yazar; `compare` ev biçimli ikinci sütun karşılaştırılan değerin boyundan değerin boyuna gerçek oranla iner (büyük olan değer 126 px), sağda fark kendiliğinden yazılır (`−$55K`; değer büyükse `+` ve vurgu rengi).
+
+### 5.8 `house_bars` (ev sütunları, 7 sn)
+
+| Ayar | Tip / kural | Varsayılan | Anlamı |
+|---|---|---|---|
+| `bars` | ValueTable, 2–10 satır, değer ≥ 0 | Lee 2019–2026 | Sütunlar; etiket genelde yıl |
+| `value_format` | `money_k` / `count` | `money_k` | Sütun üstündeki değer biçimi |
+| `arrow_from`, `arrow_to` | satır etiketi ya da ikisi de boş | `2022`, `2026` | Bu iki sütunun ve aradakilerin tepesinin 110 px üstünden, değer yazılarının üstünden geçen ok. Uç, baştan sonraki bir sütun olmalı. |
+| `arrow_color` | `#rrggbb` | `loss` | Ok rengi |
+| `highlight_color` | `#rrggbb` | `price` kategori rengi (altın) | İşaretli (`highlight`) satırın rengi |
+| `after_color` | `#rrggbb` | `loss` | İşaretli satırdan sonraki sütunların rengi |
+
+Renk kuralı: işaretli satırdan öncekiler `neutral`, işaretliler `highlight_color`, sonrakiler `after_color`. İşaret yoksa hepsi `neutral`, sonuncusu `accent`. Böylece "zirveden düşüş" (zirve altın, sonrası kırmızı) ve "dipten yükseliş" (`highlight_color` nötr, `after_color` turuncu) aynı sahneyle çizilir. Zaman: sütunlar 0,5. saniyeden 0,3 sn arayla büyür; ok son sütundan sonra (en erken 3,4. sn) 1 sn'de çizilir; ok bitince büyük rakam belirir.
+
+### 5.9 `line_trend` (çizgi ve ok, 7 sn)
+
+| Ayar | Tip / kural | Varsayılan | Anlamı |
+|---|---|---|---|
+| `points` | ValueTable, 3–15 satır, değer ≥ 0 | Osceola 2016–2026 | Noktalar. Etiketlerin hepsi dört haneli yılsa ve 6'dan fazlaysa aradakiler iki haneye kısalır (`2016, 17 … 2026`). |
+| `value_format` | `count` / `money_k` | `count` | |
+| `ref_value` | sayı ya da `null` | 2075 | Kesikli yatay referans çizgisi |
+| `ref_label` | metin | `2019 LEVEL: 2,075` | Çizginin sağ ucunda; çizgiyle çakışmayan tarafta (üst ya da alt) |
+| `mark_min` | `yes` / `no` | `yes` | En düşük noktanın değeri altında küçük yazı |
+| `axis_from_zero` | `yes` / `no` | `yes` | `no` ise eksen yuvarlak bir değerden başlar ve `AXIS STARTS AT …` yazar |
+
+Çizgi 0,7–4,2 sn arasında soldan sağa çizilir, ucunda ok başı; geçilen noktalarda nokta belirir. Son değer 4,3. saniyede son noktanın üstünde büyük yazıyla, büyük rakamla birlikte belirir.
+
+### 5.10 `bar_list` (çubuk listesi, 6,5 sn)
+
+| Ayar | Tip / kural | Varsayılan | Anlamı |
+|---|---|---|---|
+| `rows` | ValueTable, 2–10 satır, değer ≥ 0 | Pasco / Florida / ABD | Çubuklar |
+| `max_value` | sayı > 0, en büyük satırdan küçük olamaz | 100 | Tam boyun değeri |
+| `value_suffix` | metin | ` OF 100` | Değerin arkasına eklenir; boş olabilir |
+| `decimals` | 0 ya da 1 | 0 | |
+| `threshold` | sayı ya da `null`, `max_value`'dan büyük olamaz | `null` | Bu değeri aşan satırlar `loss`; kesikli dikey çizgi |
+| `threshold_label` | metin | `""` | Eşik çizgisinin üstünde (ör. `BUYER'S MARKET: 6+ MONTHS`) |
+
+2–4 satırda büyük yerleşim (satır aralığı 190 px, çubuklar 0,6 sn arayla), 5–10 satırda sıkı yerleşim (64 px, 0,18 sn arayla). Renk: işaretli satır `accent`, eşiği aşan `loss`, diğerleri `neutral`. Çubukların arkasında soluk tam boy iz (`line`) vardır.
+
+### 5.11 `ring` (halka, 6 sn)
+
+| Ayar | Tip / kural | Varsayılan | Anlamı |
+|---|---|---|---|
+| `value` | sayı ≥ 0, `max_value`'dan büyük olamaz | 94,3 | Dolum |
+| `max_value` | sayı > 0 | 100 | Tam halka |
+| `center_prefix` | metin | `$` | Ortadaki sayının öneki |
+| `center_label` | metin | `OF EVERY $100 ASKED` | Sayının alt satırı |
+| `remainder_value` | metin | `""` | Boşsa `<önek><kalan> OFF` (ör. `$6 OFF`) |
+| `remainder_label` | metin | `AT THE TABLE` | Kalanın alt satırı |
+
+Halka 0,8–3,0 sn arasında saat 12 yönünden saat yönünde dolar, ortadaki sayı sayar. 3,1. saniyede kalan dilim `loss` renginde yanar, 3,4. saniyede kalan yazısı belirir.
+
+### 5.12 `thermometer` (termometre, 6,5 sn)
+
+| Ayar | Tip / kural | Varsayılan | Anlamı |
+|---|---|---|---|
+| `tubes` | ValueTable, 1–3 satır, değer ≥ 0 | Highlands 6,2 / Florida 4,7 | Tüpler |
+| `max_value` | sayı > 0 | 8 | Tüpün tam boyu |
+| `unit_label` | metin | `MONTHS` | Değerin altındaki birim |
+| `decimals` | 0 ya da 1 | 1 | |
+| `low_value`, `low_label` | sayı ya da `null`; metin | 3, `SELLER'S MARKET: UNDER 3` | Alt eşik (nötr kesikli çizgi) |
+| `high_value`, `high_label` | sayı ya da `null`; metin | 6, `BUYER'S MARKET: OVER 6` | Üst eşik (`loss`); bu değeri aşan tüp kırmızı dolar. Alt eşikten büyük olmalı. |
+
+Eşik etiketleri çizgilerin sağında ve her zaman kadrajın içindedir (sığmazsa küçültülür). Tüpler 0,8. saniyeden 0,8 sn arayla dolar; değer tüpün yanında sayar.
+
+### 5.13 `house_grid` (ev ızgarası, 7,5 sn)
+
+| Ayar | Tip / kural | Varsayılan | Anlamı |
+|---|---|---|---|
+| `before`, `after` | tam sayı ≥ 0 | 3625, 2705 | Önceki ve sonraki değer |
+| `unit` | tam sayı ≥ 1 ya da `null` | `null` | Bir simgenin temsil ettiği ev. Boşsa 10/25/50/100/200/500/1000… serisinden simge sayısını 20–48 arasında tutan en küçük değer. En fazla 60 simge çizilir. |
+| `before_label`, `after_label` | metin | `AUGUST 2025`, `AUGUST 2026` | Sayacın altındaki dönem |
+| `result_text` | metin | `""` | Boşsa `920 FEWER HOMES FOR SALE` / `… MORE …`; etiketler aynı ayın ardışık iki yılıysa sonuna ` IN ONE YEAR` eklenir. |
+
+Önce `before/unit` kadar simge belirir ve sağ üstteki sayaç `before`'u gösterir. 2,4. saniyeden itibaren fark kadar simge teker teker (en çok 0,28 sn arayla, toplam 2,5 sn içinde) değişir: azalışta her satırın sağ ucundan, alt satırdan başlayan bir merdivenle kırmızıya döner ve sönükleşir; artışta yeni simgeler vurgu renginde eklenir (mevcutlar nötr). Sayaç `after`'a iner ya da çıkar, dönem etiketi değişir. 5,2. saniyede sonuç yazısı. Alt yazıda birim açıkça yazar (`EACH HOUSE = 100 HOMES`).
+
 ## 6. Komut satırı
 
 ```powershell
@@ -364,7 +511,11 @@ Depo kökü `sys.path` içinde olmalıdır. Tek kare için `engine.render.still_
    - **Durumsuz olmalıdır:** aynı `t` her zaman aynı kareyi vermeli. Önizleme zamanda geri gidebilir.
    - Arka planı çizmez; degradeyi ve şeffaflığı motor yönetir.
 4. Sahneyi `scenes/__init__.py` içindeki `REGISTRY`'ye ekleyin. Arayüz formu ayar tiplerinden kendiliğinden oluşur.
-5. Kullanılabilecek ayar tipleri (`engine/params.py`): `Text`, `Color`, `Number`, `Date`, `StateSelect`, `CountySelect`, `Categories`, `CountyAssign`, `PriceTable`.
+5. Kullanılabilecek ayar tipleri (`engine/params.py`): `Text`, `Color`, `Number`, `Date`, `StateSelect`, `CountySelect`, `Categories`, `CountyAssign`, `PriceTable`, `Choice`, `ValueTable`.
+   - `Choice` (`kind: "choice"`): `options` listesi `((değer, etiket), ...)`; şemada `[{"value", "label"}]`. Değer listede olmalı. Arayüzde açılır liste.
+   - `ValueTable` (`kind: "value_table"`): satırlar `{"label": str, "value": sayı, "highlight": bool}`. Seçenekler `min_rows`, `max_rows`, `integer`, `lo` (en küçük değer; şemada `min`). Etiket boş olamaz, en fazla 24 karakter, `%` içeremez; değer sonlu bir sayı olmalı (`true`/`false` sayı sayılmaz); `highlight` verilmezse `false`. Arayüzde satır ekle/sil ve işaret kutusu olan tablo (`app/static/js/valuetable.js`).
+   - `Text(no_percent=True)`: `%` içeren metni reddeder. Grafik sahnelerinin bütün metin ayarları böyledir (`scenes.chartlib.T`).
+   - Grafik sahnesi yazarken ortak ayarlar, başlık bloğu, büyük rakam, zemin, ev simgesi/sütunu, parıltılı county, nabızlı `?` ve çizilen ok için `scenes/chartlib.py` kullanılır.
 6. Ayarlar arası kurallar için `Scene(check=...)` kullanın. Fonksiyon `{ayar_adı: hata_mesajı}` döndürür.
 
 ## 11. Testler
@@ -386,6 +537,8 @@ Görünüm bilerek değiştiğinde referansları yeniden üretin:
 ```
 
 Komut yeni kareleri önce gözle kontrol için `out/referans_kontrol/` klasörüne, sonra `reference/` klasörüne yazar. Eski referanslar silinmez, `reference/eski_<tarih-saat>/` klasörüne taşınır.
+
+`projects/ornek_grafikler.json` (on grafik sahnesi, Florida verisi, prototiplerdeki değerler) için de referans kareler vardır (`test_g0_…` – `test_g9_…`). Yalnız bu seti yeniden üretmek için `python -m tests.make_reference grafikler` (`ornek_florida` referanslarına dokunmaz). Grafik sahnelerinin testleri `tests/test_charts.py`'dedir: varsayılanlarla doğrulama, başta/ortada/sonda kare, durumsuzluk, şeffaf kipte alfa, sütun/çubuk boylarının değerle orantılı olması (%1 tolerans), `%` kuralı, `county_quiz`'de süreden sonra açılan satırın soru kalması.
 
 ## 12. Sınırlar
 
@@ -411,10 +564,11 @@ Komut yeni kareleri önce gözle kontrol için `out/referans_kontrol/` klasörü
 | `engine/compose.py` | Sahneleri birleştirme |
 | `engine/project.py` | Proje JSON doğrulama/yükleme/kaydetme |
 | `engine/cli.py` | Komut satırı |
-| `scenes/` | Sahne tanımları ve `REGISTRY`. `scenes/maplib.py`, `state_map` ile `county_focus`un ortak harita katmanlarıdır. |
+| `scenes/` | Sahne tanımları ve `REGISTRY`. `scenes/maplib.py`, `state_map` ile `county_focus`un ortak harita katmanlarıdır; `scenes/chartlib.py` sekiz grafik sahnesinin ortak parçalarıdır. |
 | `app/server.py`, `app/jobs.py` | HTTP API ve render işleri |
 | `app/static/` | Arayüz (derleme adımı olmayan HTML/CSS/JS) |
-| `projects/` | Proje dosyaları (`ornek_florida.json`) |
+| `projects/` | Proje dosyaları (`ornek_florida.json`, `ornek_grafikler.json`) |
+| `docs/referans_grafikler/` | Grafik sahnelerinin görsel referansı: prototip görüntüleri ve betikleri (`vaad.py`, `grafikler.py`) |
 | `run_ui.py`, `kurulum.bat`, `baslat.bat` | Başlatıcılar |
 | `docs/superpowers/` | Tasarım belgesi ve uygulama planı |
 | `data/`, `out/`, `reference/` | Git dışı: indirilen veri, render çıktıları, test referansları |

@@ -20,7 +20,7 @@ def params(**kw):
 def test_registered_after_state_map():
     from scenes import REGISTRY
 
-    assert list(REGISTRY) == ["state_map", "county_focus", "price_ladder"]
+    assert list(REGISTRY)[:3] == ["state_map", "county_focus", "price_ladder"]
     assert S.base_duration == 5.0
 
 

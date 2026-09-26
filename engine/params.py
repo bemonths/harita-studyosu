@@ -9,6 +9,8 @@ from engine import geo
 
 HEX_RE = re.compile(r"^#[0-9a-fA-F]{6}$")
 KEY_RE = re.compile(r"^[a-z0-9_]{1,20}$")
+# kanal kuralı: ekranda yüzde işareti kullanılmaz; oranlar "44 OF 100", "3 IN 10" gibi yazılır
+PERCENT_MSG = "Ekranda yüzde işareti kullanılmaz; oranı '44 OF 100' ya da '3 IN 10' gibi yazın."
 
 
 class ParamError(ValueError):
@@ -48,6 +50,7 @@ class Text(Param):
     multiline: bool = False
     auto: bool = False
     max_len: int = 200
+    no_percent: bool = False  # grafik sahneleri: "%" içeren metin reddedilir
     kind = "text"
 
     def extra(self):
@@ -60,6 +63,8 @@ class Text(Param):
             self.fail("metin olmalı")
         if len(value) > self.max_len:
             self.fail(f"en fazla {self.max_len} karakter olabilir")
+        if self.no_percent and "%" in value:
+            self.fail(PERCENT_MSG)
         return value
 
 
@@ -248,6 +253,63 @@ class PriceTable(Param):
                 if price == out[-1]["price"]:
                     self.fail(f"{i}. satırın fiyatı bir öncekiyle aynı olamaz")
             out.append({"date": d.isoformat(), "price": price})
+        return out
+
+
+@dataclass
+class Choice(Param):
+    options: tuple = ()  # ((değer, etiket), ...)
+    kind = "choice"
+
+    def extra(self):
+        return {"options": [{"value": v, "label": lab} for v, lab in self.options]}
+
+    def validate(self, value, values):
+        if value not in [v for v, _ in self.options]:
+            self.fail("listedeki seçeneklerden biri olmalı")
+        return value
+
+
+@dataclass
+class ValueTable(Param):
+    """Grafik verisi: satırlar {label, value, highlight}. Etiketler grafikte yazılır (en fazla 24 karakter)."""
+    min_rows: int = 1
+    max_rows: int = 10
+    integer: bool = False
+    lo: float = None  # en küçük değer (sütun ve çubuklar sıfırdan başladığı için genelde 0)
+    kind = "value_table"
+
+    def extra(self):
+        return {"min_rows": self.min_rows, "max_rows": self.max_rows, "integer": self.integer, "min": self.lo}
+
+    def validate(self, value, values):
+        if not isinstance(value, list) or not self.min_rows <= len(value) <= self.max_rows:
+            self.fail(f"{self.min_rows} ile {self.max_rows} arasında satır olmalı")
+        out = []
+        for i, r in enumerate(value, 1):
+            if not isinstance(r, dict):
+                self.fail(f"{i}. satır geçersiz")
+            label = str(r.get("label") if r.get("label") is not None else "").strip()
+            if not 1 <= len(label) <= 24:
+                self.fail(f"{i}. satırın etiketi 1–24 karakter olmalı")
+            if "%" in label:
+                self.fail(f"{i}. satır: {PERCENT_MSG}")
+            v = r.get("value")
+            if isinstance(v, bool) or v is None or v == "":
+                self.fail(f"{i}. satırın değeri sayı olmalı")
+            try:
+                v = float(v)
+            except (TypeError, ValueError):
+                self.fail(f"{i}. satırın değeri sayı olmalı")
+            if not math.isfinite(v):
+                self.fail(f"{i}. satırın değeri sayı olmalı")
+            if self.integer:
+                if v != int(v):
+                    self.fail(f"{i}. satırın değeri tam sayı olmalı")
+                v = int(v)
+            if self.lo is not None and v < self.lo:
+                self.fail(f"{i}. satırın değeri en az {self.lo:g} olmalı")
+            out.append({"label": label, "value": v, "highlight": bool(r.get("highlight", False))})
         return out
 
 
